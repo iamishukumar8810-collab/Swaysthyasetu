@@ -38,6 +38,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "nav.home": "Home",
     "nav.patientQueue": "Patient Queue",
     "nav.consultations": "Consultations",
+    "nav.doctorListing": "Doctor Listing",
     "nav.patientHistory": "Patient History",
     "nav.reports": "Reports",
     "nav.analytics": "Analytics",
@@ -46,7 +47,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "nav.modernIntelligence": "Modern Intelligence",
 
     // Banner & Badges
-    "banner.welcome": "Welcome, Dr. Meera Sharma",
+    "banner.welcome": "Welcome, Physician",
     "banner.subtitle": "Let's make every consultation more complete and accurate.",
     "badge.voiceTouch": "Voice + Touch Interface",
     "badge.multilingual": "Multilingual (12+ Languages)",
@@ -151,7 +152,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.slogan": "From first interaction to better care",
 
     // Patient Dashboard Common
-    "patient.greeting": "Namaste, Ramesh Kumar!",
+    "patient.greeting": "Namaste,",
     "patient.tagline": "Your personalized AYUSH health & pre-consultation portal",
     "patient.myHealth": "My Health",
     "patient.appointments": "Appointments",
@@ -177,6 +178,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "nav.home": "मुख्य पृष्ठ",
     "nav.patientQueue": "मरीज़ कतार",
     "nav.consultations": "परामर्श",
+    "nav.doctorListing": "डॉक्टर सूची",
     "nav.patientHistory": "मरीज़ इतिहास",
     "nav.reports": "रिपोर्ट्स",
     "nav.analytics": "एनालिटिक्स",
@@ -290,7 +292,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.slogan": "पहली बातचीत से बेहतर देखभाल तक",
 
     // Patient Dashboard Common
-    "patient.greeting": "नमस्ते, रमेश कुमार!",
+    "patient.greeting": "नमस्ते,",
     "patient.tagline": "आपका व्यक्तिगत आयुष स्वास्थ्य और प्री-कंसल्टेशन पोर्टल",
     "patient.myHealth": "मेरा स्वास्थ्य",
     "patient.appointments": "अपॉइंटमेंट्स",
@@ -418,7 +420,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.betterDecisionsSub": "ડૉક્ટરો અને દર્દીઓ માટે",
     "ribbon.slogan": "પ્રથમ ક્રિયાપ્રતિક્રિયાથી વધુ સારી સંભાળ સુધી",
 
-    "patient.greeting": "નમસ્તે, રમેશ કુમાર!",
+    "patient.greeting": "નમસ્તે,",
     "patient.tagline": "તમારું વ્યક્તિગત આયુષ આરોગ્ય પોર્ટલ",
     "patient.myHealth": "મારું આરોગ્ય",
     "patient.appointments": "મુલાકાતો",
@@ -546,7 +548,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.betterDecisionsSub": "डॉक्टर आणि रुग्णांसाठी",
     "ribbon.slogan": "पहिल्या संवादापासून चांगल्या काळजीपर्यंत",
 
-    "patient.greeting": "नमस्ते, रमेश कुमार!",
+    "patient.greeting": "नमस्ते,",
     "patient.tagline": "तुमचे वैयक्तिकृत आयुष आरोग्य पोर्टल",
     "patient.myHealth": "माझे आरोग्य",
     "patient.appointments": "अपॉइंटमेंट्स",
@@ -674,7 +676,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.betterDecisionsSub": "ডাক্তার এবং রোগীদের জন্য",
     "ribbon.slogan": "প্রথম মিথস্ক্রিয়া থেকে উন্নত যত্ন",
 
-    "patient.greeting": "নমস্কার, রমেশ কুমার!",
+    "patient.greeting": "নমস্কার,",
     "patient.tagline": "আপনার ব্যক্তিগতকৃত আয়ুষ স্বাস্থ্য পোর্টাল",
     "patient.myHealth": "আমার স্বাস্থ্য",
     "patient.appointments": "সাক্ষাৎকার",
@@ -802,7 +804,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.betterDecisionsSub": "மருத்துவர்கள் மற்றும் நோயாளிகளுக்கு",
     "ribbon.slogan": "முதல் உரையாடலில் இருந்து சிறந்த கவனிப்பு வரை",
 
-    "patient.greeting": "வணக்கம், ரமேஷ் குமார்!",
+    "patient.greeting": "வணக்கம்,",
     "patient.tagline": "உங்கள் தனிப்பயனாக்கப்பட்ட ஆயுஷ் போர்டல்",
     "patient.myHealth": "என் உடல்நலம்",
     "patient.appointments": "முன்பதிவுகள்",
@@ -930,7 +932,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.betterDecisionsSub": "వైద్యులు మరియు రోగుల కోసం",
     "ribbon.slogan": "మొదటి పరస్పర చర్య నుండి మెరుగైన సంరక్షణ వరకు",
 
-    "patient.greeting": "నమస్కారం, రమేష్ కుమార్!",
+    "patient.greeting": "నమస్కారం,",
     "patient.tagline": "మీ ఆయుష్ ఆరోగ్య పోర్టల్",
     "patient.myHealth": "నా ఆరోగ్యం",
     "patient.appointments": "అపాయింట్‌మెంట్‌లు",
@@ -1058,7 +1060,7 @@ export const TRANSLATIONS: Record<LanguageCode, Record<string, string>> = {
     "ribbon.betterDecisionsSub": "वैद्येभ्यः रोगिभ्यश्च",
     "ribbon.slogan": "प्रथमालापात् श्रेष्ठशुश्रूषां यावत्",
 
-    "patient.greeting": "नमस्ते, रमेश कुमार!",
+    "patient.greeting": "नमस्ते,",
     "patient.tagline": "भवतः व्यक्तिगतं आयुष-स्वास्थ्य-जालस्थलम्",
     "patient.myHealth": "मम स्वास्थ्यम्",
     "patient.appointments": "मेलननिश्चयाः",

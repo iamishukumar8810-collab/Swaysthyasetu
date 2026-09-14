@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -36,11 +36,30 @@ import {
   MessageSquare,
   HelpCircle,
   FileSpreadsheet,
-  CheckCircle
+  CheckCircle,
+  Star,
+  Award,
+  MapPin,
+  Trash2,
+  Eye,
+  SlidersHorizontal
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { useLanguage, LanguageCode } from "@/context/LanguageContext";
+import {
+  DoctorProfile,
+  getCurrentDoctorProfile,
+  saveCurrentDoctorProfile,
+  unpublishCurrentDoctorProfile,
+} from "@/lib/doctorStore";
+import { getDoctorQueue, subscribeToDoctorQueue } from "@/lib/doctorStore";
+import {
+  AIIntakeSummary,
+  getAIIntakeSummary,
+  subscribeToAIIntake,
+  markAIIntakeAccepted,
+} from "@/lib/aiIntakeStore";
 
 interface TimelineItem {
   id: string;
@@ -100,177 +119,353 @@ interface PatientData {
   };
 }
 
-const INITIAL_PATIENTS: PatientData[] = [
-  {
-    id: "AYUH-2024-08725",
-    name: "Ramesh Kumar",
-    age: 45,
-    gender: "Male",
-    phone: "9636462356",
-    time: "10:30 AM",
-    language: "Hindi",
-    status: "Case Ready",
-    chiefComplaint: "Joint pain (3 months)",
-    duration: "3 months",
-    currentMedicines: "Tab. PCM 500mg",
-    allergies: "None",
-    insights: "Vata-Pitta imbalance (Predicted)",
-    prakriti: "Vata-Pitta",
-    agni: "Manda (slightly low)",
-    previousTreatment: "Painkillers (2 months)",
-    familyHistory: "Diabetes (Father)",
-    completeness: 92,
-    checklist: [
-      { label: "Chief complaint", checked: true },
-      { label: "Duration", checked: true },
-      { label: "Previous treatment", checked: true },
-      { label: "Current medicines", checked: true },
-      { label: "Family history", checked: true },
-      { label: "Personal history", checked: true },
-      { label: "Previous investigations", checked: false, missing: true }
-    ],
-    alerts: [
-      { id: "alt-1", type: "danger", title: "New Symptom", desc: "Sleep disturbance", resolved: false },
-      { id: "alt-2", type: "warning", title: "Missing Report", desc: "Previous prescription", resolved: false },
-      { id: "alt-3", type: "warning", title: "Medicine Changed", desc: "Added Vitamin D", resolved: false },
-      { id: "alt-4", type: "success", title: "No Critical Alerts", desc: "Vital signs normal", resolved: true }
-    ],
-    timeline: [
-      { id: "t-1", date: "Apr 2023", title: "Lab Report (Hb 12.4)", type: "Lab Report", color: "text-emerald-600 bg-emerald-500" },
-      { id: "t-2", date: "Aug 2023", title: "Prescription (PCM 500mg)", type: "Prescription", color: "text-teal-600 bg-teal-500" },
-      { id: "t-3", date: "Jan 2024", title: "Hospitalization (Appendicitis)", type: "Discharge Summary", color: "text-amber-600 bg-amber-500" },
-      { id: "t-4", date: "May 2024", title: "Current Consultation", type: "Active Intake", color: "text-emerald-600 bg-emerald-500" }
-    ],
-    ayushAssessment: {
-      dosha: "Vata (Aggravated, 45%) • Pitta (Secondary, 35%) • Kapha (20%)",
-      dhatu: "Asthi & Majja Dhatu Kshaya with mild Sandhivata lakshana",
-      srotas: "Asthivaha Srotas & Purishavaha Srotas obstruction",
-      nidana: "Ruksha/Sheeta Ahara intake, irregular sleep timings, sedentary desk work",
-      chikitsa: "Snehan & Swedan, Janu Basti, Yogaraj Guggulu 1 tab BD, Ashwagandha Churna"
-    },
-    medicalHistory: {
-      pastConditions: "Mild hyperacidity 1 year ago, controlled with lifestyle",
-      surgeries: "Appendectomy (Laparoscopic) in Jan 2024 - Uneventful recovery",
-      lifestyle: "Sedentary bank employee, sits 8+ hrs daily, vegetarian diet"
-    }
+const INITIAL_PATIENTS: PatientData[] = [];
+
+const DEFAULT_PATIENT: PatientData = {
+  id: "",
+  name: "Unknown Patient",
+  age: 0,
+  gender: "",
+  phone: "",
+  time: "",
+  language: "",
+  status: "",
+  chiefComplaint: "",
+  duration: "",
+  currentMedicines: "",
+  allergies: "",
+  insights: "",
+  prakriti: "",
+  agni: "",
+  previousTreatment: "",
+  familyHistory: "",
+  completeness: 0,
+  checklist: [],
+  alerts: [],
+  timeline: [],
+  ayushAssessment: {
+    dosha: "",
+    dhatu: "",
+    srotas: "",
+    nidana: "",
+    chikitsa: "",
   },
-  {
-    id: "AYUH-2024-08726",
-    name: "Sita Devi",
-    age: 58,
-    gender: "Female",
-    phone: "9876543210",
-    time: "10:45 AM",
-    language: "Hindi",
-    status: "Waiting",
-    chiefComplaint: "Bilateral knee joint pain & morning stiffness (Sandhigata Vata)",
-    duration: "6 months",
-    currentMedicines: "Ayurvedic Taila, Calcium 500mg",
-    allergies: "Penicillin",
-    insights: "Vata-Kapha Prakriti with degenerative joint changes",
-    prakriti: "Vata-Kapha",
-    agni: "Vishamagni",
-    previousTreatment: "Local knee massage, Knee support brace",
-    familyHistory: "Hypertension (Mother)",
-    completeness: 86,
-    checklist: [
-      { label: "Chief complaint", checked: true },
-      { label: "Duration", checked: true },
-      { label: "Previous treatment", checked: true },
-      { label: "Current medicines", checked: true },
-      { label: "Family history", checked: true },
-      { label: "Personal history", checked: true },
-      { label: "Recent Serum Uric Acid & ESR", checked: false, missing: true }
-    ],
-    alerts: [
-      { id: "alt-201", type: "warning", title: "Mobility Concern", desc: "Difficulty climbing stairs", resolved: false },
-      { id: "alt-202", type: "info", title: "Dietary Assessment", desc: "Excess cold and dry foods reported", resolved: false },
-      { id: "alt-203", type: "success", title: "No Critical Alerts", desc: "BP: 128/82 mmHg, Pulse 74", resolved: true }
-    ],
-    timeline: [
-      { id: "t-201", date: "Nov 2023", title: "Bilateral Knee X-Ray (Mild OA)", type: "Lab Report", color: "text-teal-600 bg-teal-500" },
-      { id: "t-202", date: "Feb 2024", title: "Ayurvedic Consultation (Janu Basti)", type: "Prescription", color: "text-emerald-600 bg-emerald-500" },
-      { id: "t-203", date: "May 2024", title: "Current Follow-up OPD", type: "Active Intake", color: "text-emerald-600 bg-emerald-500" }
-    ],
-    ayushAssessment: {
-      dosha: "Vata (50%) • Kapha (35%) • Pitta (15%)",
-      dhatu: "Asthidhatu Shaithilya with Shoola in Sandhi",
-      srotas: "Asthivaha & Rasavaha Srotas",
-      nidana: "Cold weather aggravation, prolonged standing during kitchen chores",
-      chikitsa: "Shallaki Tablet 500mg BD, Maharasnadi Kwath 20ml BD, Kshirabala Taila Matra Basti"
-    },
-    medicalHistory: {
-      pastConditions: "Osteopenia diagnosed 2 years ago",
-      surgeries: "None",
-      lifestyle: "Homemaker, morning yoga (mild), vegetarian"
-    }
+  medicalHistory: {
+    pastConditions: "",
+    surgeries: "",
+    lifestyle: "",
   },
-  {
-    id: "AYUH-2024-08727",
-    name: "Mohd. Ali",
-    age: 33,
-    gender: "Male",
-    phone: "9823456781",
-    time: "11:00 AM",
-    language: "English",
-    status: "In Progress",
-    chiefComplaint: "Lower back pain radiating to left leg (Gridhrasi / Sciatica)",
-    duration: "1.5 months",
-    currentMedicines: "Tramadol SOS (Discontinued), Multivitamin",
-    allergies: "None",
-    insights: "Vata Vyadhi (Kati Graha with Gridhrasi lakshana)",
-    prakriti: "Pitta-Vata",
-    agni: "Tikshnagni",
-    previousTreatment: "Physiotherapy (3 weeks, partial relief)",
-    familyHistory: "None significant",
-    completeness: 88,
-    checklist: [
-      { label: "Chief complaint", checked: true },
-      { label: "Duration", checked: true },
-      { label: "Previous treatment", checked: true },
-      { label: "Current medicines", checked: true },
-      { label: "Family history", checked: true },
-      { label: "Personal history", checked: true },
-      { label: "Lumbar Spine MRI disk", checked: false, missing: true }
-    ],
-    alerts: [
-      { id: "alt-301", type: "danger", title: "Severe Pain Episode", desc: "VAS score 7/10 during morning hours", resolved: false },
-      { id: "alt-302", type: "warning", title: "Missing Report", desc: "Lumbar Spine MRI disk copy", resolved: false },
-      { id: "alt-303", type: "success", title: "No Critical Alerts", desc: "Normal lower limb deep tendon reflexes", resolved: true }
-    ],
-    timeline: [
-      { id: "t-301", date: "Mar 2024", title: "Lumbar Spine X-Ray", type: "Lab Report", color: "text-emerald-600 bg-emerald-500" },
-      { id: "t-302", date: "Apr 2024", title: "Physiotherapy Summary Sheet", type: "Discharge Summary", color: "text-teal-600 bg-teal-500" },
-      { id: "t-303", date: "May 2024", title: "Current AYUSH OPD", type: "Active Intake", color: "text-emerald-600 bg-emerald-500" }
-    ],
-    ayushAssessment: {
-      dosha: "Vata (55%) • Pitta (30%) • Kapha (15%)",
-      dhatu: "Mamsa & Majja Dhatu Pratiloma Gati",
-      srotas: "Majjavaha & Purishavaha Srotas",
-      nidana: "Heavy bike riding & irregular lifting, prolonged sitting posture",
-      chikitsa: "Kati Basti with Sahacharadi Taila, Trayodashanga Guggulu, Dashamoola Kwath"
-    },
-    medicalHistory: {
-      pastConditions: "Occasional lumbar spasm since 2022",
-      surgeries: "None",
-      lifestyle: "Software Engineer, sedentary 9+ hours, gym enthusiast (suspended)"
-    }
-  }
-];
+};
 
 export default function DoctorWorkspacePage() {
   const { language, setLanguage, t, currentLanguage, supportedLanguages } = useLanguage();
 
   const [patients, setPatients] = useState<PatientData[]>(INITIAL_PATIENTS);
-  const [selectedPatientId, setSelectedPatientId] = useState<string>("AYUH-2024-08725");
+  const [patientReports, setPatientReports] = useState<Record<string, any[]>>({});
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [reportsForModal, setReportsForModal] = useState<any[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"Summary" | "AYUSH Assessment" | "Medical History" | "Reports">("Summary");
   const [activeSidebarTab, setActiveSidebarTab] = useState("Home");
 
+  // Current Logged-in Doctor Profile & Listing State
+  const defaultDoctorForm: DoctorProfile = {
+    id: "",
+    name: "",
+    specialty: "",
+    subSpecialty: "",
+    qualifications: "",
+    experienceYears: 0,
+    hospital: "",
+    location: "",
+    rating: 0,
+    reviewsCount: 0,
+    consultationFee: 0,
+    availableTimings: "",
+    nextAvailableSlot: "",
+    languages: [],
+    expertise: [],
+    about: "",
+    phone: "",
+    registrationNumber: "",
+    isAvailableToday: false,
+    isAyushVerified: false,
+    isPublished: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  const [currentDoctor, setCurrentDoctor] = useState<DoctorProfile>(defaultDoctorForm);
+  const [expertiseInput, setExpertiseInput] = useState<string>(defaultDoctorForm.expertise.join(", "));
+  const [languagesInput, setLanguagesInput] = useState<string>(defaultDoctorForm.languages.join(", "));
+
+  // Load saved profile on mount
+  useEffect(() => {
+    // Load any queued patients added from Patient Portal bookings
+    try {
+      const queue = getDoctorQueue();
+      if (queue && queue.length > 0) {
+        setPatients((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newEntries = queue
+            .filter((q: any) => !existingIds.has(q.id))
+            .map((q: any) => ({
+              id: q.id,
+              name: q.name,
+              age: q.age || 0,
+              gender: q.gender || "",
+              phone: q.phone || "",
+              time: q.time || "",
+              language: q.language || "",
+              status: q.status || "Waiting",
+              chiefComplaint: q.chiefComplaint || "",
+              duration: q.duration || "",
+              currentMedicines: "",
+              allergies: "",
+              insights: "",
+              prakriti: "",
+              agni: "",
+              previousTreatment: "",
+              familyHistory: "",
+              completeness: 80,
+              checklist: [],
+              alerts: [],
+              timeline: [],
+              ayushAssessment: {
+                dosha: "",
+                dhatu: "",
+                srotas: "",
+                nidana: "",
+                chikitsa: "",
+              },
+              medicalHistory: {
+                pastConditions: "",
+                surgeries: "",
+                lifestyle: "",
+              },
+            } satisfies PatientData));
+          // store reports map
+          const reportsMap: Record<string, any[]> = {};
+          queue.forEach((q: any) => {
+            if (q.reports && q.reports.length > 0) {
+              reportsMap[q.id] = q.reports;
+            }
+          });
+          setPatientReports((prevRp) => ({ ...prevRp, ...reportsMap }));
+          return [...newEntries, ...prev];
+        });
+      }
+    } catch (e) {}
+
+    const saved = getCurrentDoctorProfile();
+    if (saved) {
+      setCurrentDoctor(saved);
+      setExpertiseInput(saved.expertise.join(", "));
+      setLanguagesInput(saved.languages.join(", "));
+    }
+    const unsubQueue = subscribeToDoctorQueue((queue) => {
+      if (!queue || queue.length === 0) return;
+      setPatients((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const newEntries = queue
+          .filter((q: any) => !existingIds.has(q.id))
+          .map((q: any) => ({
+            id: q.id,
+            name: q.name,
+            age: q.age || 0,
+            gender: q.gender || "",
+            phone: q.phone || "",
+            time: q.time || "",
+            language: q.language || "",
+            status: q.status || "Waiting",
+            chiefComplaint: q.chiefComplaint || "",
+            duration: q.duration || "",
+            currentMedicines: "",
+            allergies: "",
+            insights: "",
+            prakriti: "",
+            agni: "",
+            previousTreatment: "",
+            familyHistory: "",
+            completeness: 80,
+            checklist: [],
+            alerts: [],
+            timeline: [],
+            ayushAssessment: {
+              dosha: "",
+              dhatu: "",
+              srotas: "",
+              nidana: "",
+              chikitsa: "",
+            },
+            medicalHistory: {
+              pastConditions: "",
+              surgeries: "",
+              lifestyle: "",
+            },
+          } satisfies PatientData));
+        // update reports map
+        const reportsMap: Record<string, any[]> = {};
+        queue.forEach((q: any) => {
+          if (q.reports && q.reports.length > 0) {
+            reportsMap[q.id] = q.reports;
+          }
+        });
+        setPatientReports((prevRp) => ({ ...prevRp, ...reportsMap }));
+        return [...newEntries, ...prev];
+      });
+    });
+    return () => {
+      unsubQueue && unsubQueue();
+    };
+  }, []);
+
+  // AI Intake Summary State synced from Patient Portal
+  const [aiIntake, setAiIntake] = useState<AIIntakeSummary | null>(null);
+  const [showAIIntakeModal, setShowAIIntakeModal] = useState(false);
+
+  useEffect(() => {
+    const summary = getAIIntakeSummary();
+    setAiIntake(summary);
+    if (summary) {
+      setPatients((prev) =>
+        prev.map((p) => {
+          const matchesIntake = summary && (p.id === summary.patientId || (summary.patientName && p.name === summary.patientName));
+          if (matchesIntake) {
+            return {
+              ...p,
+              chiefComplaint: summary.chiefComplaint || p.chiefComplaint,
+              duration: summary.duration || p.duration,
+              insights: `${summary.predictedDosha} (${summary.severity} severity)`,
+              alerts: summary.isRedFlag
+                ? [
+                    {
+                      id: "ai-red-flag",
+                      type: "danger" as const,
+                      title: "🚩 AI Triage Red Flag",
+                      desc: summary.redFlagReasons.join(" • ") || "Severe pain / chronic duration",
+                      resolved: false,
+                    },
+                    ...p.alerts.filter((a) => a.id !== "ai-red-flag"),
+                  ]
+                : p.alerts,
+            };
+          }
+          return p;
+        })
+      );
+    }
+
+    const unsub = subscribeToAIIntake((updated) => {
+      setAiIntake(updated);
+        if (updated) {
+        setPatients((prev) =>
+          prev.map((p) => {
+            const matchesIntake = updated && (p.id === updated.patientId || (updated.patientName && p.name === updated.patientName));
+            if (matchesIntake) {
+              return {
+                ...p,
+                chiefComplaint: updated.chiefComplaint || p.chiefComplaint,
+                duration: updated.duration || p.duration,
+                insights: `${updated.predictedDosha} (${updated.severity} severity)`,
+                alerts: updated.isRedFlag
+                  ? [
+                      {
+                        id: "ai-red-flag",
+                        type: "danger" as const,
+                        title: "🚩 AI Triage Red Flag",
+                        desc: updated.redFlagReasons.join(" • ") || "Severe pain / chronic duration",
+                        resolved: false,
+                      },
+                      ...p.alerts.filter((a) => a.id !== "ai-red-flag"),
+                    ]
+                  : p.alerts,
+              };
+            }
+            return p;
+          })
+        );
+        triggerToast(`New AI Clinical Intake Summary received for ${updated.patientName || 'patient'}!`);
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  const handleImportAISummary = () => {
+    if (!aiIntake) return;
+    setPatients((prev) =>
+      prev.map((p) => {
+        const matchesIntake = aiIntake && (p.id === aiIntake.patientId || (aiIntake.patientName && p.name === aiIntake.patientName));
+        if (matchesIntake) {
+          return {
+            ...p,
+            chiefComplaint: aiIntake.chiefComplaint || p.chiefComplaint,
+            duration: aiIntake.duration || p.duration,
+            insights: `${aiIntake.predictedDosha} (${aiIntake.severity} severity)`,
+          };
+        }
+        return p;
+      })
+    );
+    markAIIntakeAccepted(aiIntake.id);
+    triggerToast(`AI Clinical Intake Summary imported into ${aiIntake.patientName || 'patient'}'s Case Sheet!`);
+    setShowAIIntakeModal(false);
+  };
+
+  const handlePublishDoctorProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentDoctor.name.trim() || !currentDoctor.hospital.trim()) {
+      triggerToast("Please enter doctor name and hospital/clinic.");
+      return;
+    }
+
+    const updatedProfile: DoctorProfile = {
+      ...currentDoctor,
+      name: currentDoctor.name.trim(),
+      subSpecialty: currentDoctor.subSpecialty.trim() || `${currentDoctor.specialty} Specialist`,
+      qualifications: currentDoctor.qualifications.trim(),
+      experienceYears: Number(currentDoctor.experienceYears) || 1,
+      hospital: currentDoctor.hospital.trim(),
+      location: currentDoctor.location.trim() || "India",
+      rating: Number(currentDoctor.rating) || 4.9,
+      reviewsCount: Number(currentDoctor.reviewsCount) || 1,
+      consultationFee: Number(currentDoctor.consultationFee) || 500,
+      availableTimings: currentDoctor.availableTimings.trim(),
+      nextAvailableSlot: currentDoctor.nextAvailableSlot.trim() || "Today, 4:00 PM",
+      languages: languagesInput.split(",").map((s) => s.trim()).filter(Boolean),
+      expertise: expertiseInput.split(",").map((s) => s.trim()).filter(Boolean),
+      about: currentDoctor.about.trim() || "Registered AYUSH Medical Practitioner.",
+      phone: currentDoctor.phone.trim(),
+      registrationNumber: currentDoctor.registrationNumber.trim() || "AYU-DEL-2015-08129",
+      isPublished: true,
+    };
+
+    saveCurrentDoctorProfile(updatedProfile);
+    setCurrentDoctor(updatedProfile);
+    triggerToast("Your Doctor Profile has been published! Patients can now see your card on the consultation page.");
+  };
+
+  const handleUnpublishDoctorProfile = () => {
+    unpublishCurrentDoctorProfile(currentDoctor.id);
+    const updated = { ...currentDoctor, isPublished: false };
+    setCurrentDoctor(updated);
+    triggerToast("Profile unpublished. Your card is now hidden from the patient consultation page.");
+  };
+
+  const handleToggleDoctorAvailability = () => {
+    const updated = { ...currentDoctor, isAvailableToday: !currentDoctor.isAvailableToday };
+    setCurrentDoctor(updated);
+    if (updated.isPublished) {
+      saveCurrentDoctorProfile(updated);
+    }
+    triggerToast(`Status set to: ${updated.isAvailableToday ? "Available Today" : "Offline / Busy"}`);
+  };
+
   // Notifications Popover
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications] = useState([
-    { id: 1, title: "New pre-consultation ready", desc: "Ramesh Kumar completed AI intake via mobile.", time: "5 min ago", read: false },
+    { id: 1, title: "New pre-consultation ready", desc: "A patient completed AI intake via mobile.", time: "5 min ago", read: false },
     { id: 2, title: "Lab Report Uploaded", desc: "Previous Hb 12.4 report synced to timeline.", time: "22 min ago", read: false },
     { id: 3, title: "Critical Alert Cleared", desc: "Vital signs verified normal by intake triage.", time: "1 hr ago", read: true },
   ]);
@@ -307,9 +502,10 @@ export default function DoctorWorkspacePage() {
 
   // Upload input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDoctorDragOver, setIsDoctorDragOver] = useState(false);
 
-  // Active patient object
-  const currentPatient = patients.find((p) => p.id === selectedPatientId) || patients[0];
+  // Active patient object (use a safe default when patients list is empty)
+  const currentPatient = patients.find((p) => p.id === selectedPatientId) || patients[0] || DEFAULT_PATIENT;
 
   // Filtered patients for search
   const filteredPatients = patients.filter((p) =>
@@ -354,16 +550,15 @@ export default function DoctorWorkspacePage() {
     }, 600);
   };
 
-  // Handle Document Upload Simulation
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  // Handle Document Upload & Processing
+  const processUploadedFile = (file: File) => {
+    const isPdf = file.name.toLowerCase().endsWith(".pdf");
+    const isImg = /\.(jpg|jpeg|png|webp)$/i.test(file.name);
     const newTimelineItem: TimelineItem = {
       id: `doc-${Date.now()}`,
-      date: "May 2024",
+      date: new Date().toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
       title: `${file.name} (Uploaded by Doctor)`,
-      type: file.name.endsWith(".pdf") ? "Lab Report" : "Prescription",
+      type: isPdf ? "Lab Report" : isImg ? "Prescription" : "Clinical Document",
       color: "text-teal-600 bg-teal-500"
     };
 
@@ -383,12 +578,24 @@ export default function DoctorWorkspacePage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processUploadedFile(file);
+  };
+
+  const handleDoctorDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDoctorDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processUploadedFile(file);
+  };
+
   // Handle quick tag upload mock
   const handleQuickUpload = (docType: string) => {
     const newTimelineItem: TimelineItem = {
       id: `doc-quick-${Date.now()}`,
       date: "May 2024",
-      title: `${docType} Attached - Dr. Meera Sharma`,
+      title: `${docType} Attached - ${currentDoctor.name || 'Attending Physician'}`,
       type: docType,
       color: "text-emerald-600 bg-emerald-500"
     };
@@ -583,7 +790,7 @@ export default function DoctorWorkspacePage() {
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                  Dr. Meera Sharma
+                  {currentDoctor.name || 'Attending Physician'}
                 </p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                   {t("header.doctorTitle", "Physician (MD Ayurveda)")}
@@ -614,8 +821,9 @@ export default function DoctorWorkspacePage() {
           <nav className="space-y-1 w-full flex md:flex-col gap-1 md:gap-1">
             {[
               { id: "Home", label: t("nav.home", "Home"), icon: Home, badge: null },
+              { id: "DoctorListing", label: t("nav.doctorListing", "Doctor Listing"), icon: Stethoscope, badge: currentDoctor.isPublished ? "Live" : "Draft" },
               { id: "Queue", label: t("nav.patientQueue", "Patient Queue"), icon: Users, badge: patients.length.toString() },
-              { id: "Consultations", label: t("nav.consultations", "Consultations"), icon: Stethoscope, badge: null },
+              { id: "Consultations", label: t("nav.consultations", "Consultations"), icon: Calendar, badge: null },
               { id: "History", label: t("nav.patientHistory", "Patient History"), icon: Clock, badge: null },
               { id: "Reports", label: t("nav.reports", "Reports"), icon: FileText, badge: null },
               { id: "Analytics", label: t("nav.analytics", "Analytics"), icon: BarChart3, badge: null },
@@ -679,7 +887,7 @@ export default function DoctorWorkspacePage() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                {t("banner.welcome", "Welcome, Dr. Meera Sharma")}
+                {t("banner.welcome", `Welcome, ${currentDoctor.name || 'Physician'}`)}
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                 {t("banner.subtitle", "Let's make every consultation more complete and accurate.")}
@@ -707,34 +915,629 @@ export default function DoctorWorkspacePage() {
                 );
               })}
             </div>
+
+            {/* Quick Switch to Doctor Listing or OPD Queue */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setActiveSidebarTab("Home")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeSidebarTab !== "DoctorListing"
+                    ? "bg-[#0E7C4A] text-white shadow-sm"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Patient Queue</span>
+              </button>
+
+              <button
+                onClick={() => setActiveSidebarTab("DoctorListing")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeSidebarTab === "DoctorListing"
+                    ? "bg-[#0E7C4A] text-white shadow-sm"
+                    : "bg-[#EAF7EF] text-[#0E7C4A] dark:bg-emerald-950/80 dark:text-emerald-300 hover:bg-[#d8f0e1]"
+                }`}
+              >
+                <Stethoscope className="w-3.5 h-3.5" />
+                <span>My Doctor Profile ({currentDoctor.isPublished ? "Live" : "Draft"})</span>
+              </button>
+            </div>
           </div>
 
-          {/* Quick Queue Switcher Ribbon */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-              {t("activePatientLabel", "Active Patient:")}
-            </span>
-            {patients.map((p) => {
-              const isCurrent = p.id === currentPatient.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPatientId(p.id)}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 border ${
-                    isCurrent
-                      ? "bg-[#0E7C4A] text-white border-[#0E7C4A] shadow-md shadow-emerald-800/20"
-                      : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500"
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${isCurrent ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
-                  <span>{p.name}</span>
-                  <span className={`text-[10px] font-mono ${isCurrent ? "text-emerald-100" : "text-slate-400"}`}>
-                    ({p.id})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {activeSidebarTab === "DoctorListing" ? (
+            <div className="space-y-6">
+              {/* Doctor Listing Header & Status */}
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      currentDoctor.isPublished 
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300"
+                        : "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300"
+                    }`}>
+                      {currentDoctor.isPublished ? "● Published & Live on Patient Directory" : "○ Draft Profile (Not Visible to Patients)"}
+                    </span>
+                    <span className="text-xs text-slate-400">•</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      Physician Profile &amp; Directory Manager
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    My Doctor Profile &amp; Public Listing
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Complete your details to show your doctor card on the patient consultation page. Only published doctors appear to patients.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleToggleDoctorAvailability}
+                    className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                      currentDoctor.isAvailableToday
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700"
+                    }`}
+                  >
+                    {currentDoctor.isAvailableToday ? "● Available Today" : "○ Offline Today"}
+                  </button>
+
+                  <Link
+                    href="/patient"
+                    className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-[#0E7C4A]" />
+                    <span>View Patient Side</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* 2-Column: Form on Left, Live Patient Card Preview on Right */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Left Column: Form (7 cols) */}
+                <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-[#EAF7EF] dark:bg-emerald-950 text-[#0E7C4A] dark:text-emerald-400 flex items-center justify-center font-bold">
+                        <Edit3 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          Physician Information &amp; Clinical Details
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Doctors can only manage their own profile details.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handlePublishDoctorProfile} className="space-y-4 text-xs">
+                    {/* Row 1: Name & Specialty */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Full Name with Title *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={currentDoctor.name}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, name: e.target.value })}
+                          placeholder="e.g. Dr. Name"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          AYUSH Clinical Specialty *
+                        </label>
+                        <select
+                          value={currentDoctor.specialty}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, specialty: e.target.value })}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        >
+                          <option value="Ayurveda">Ayurveda</option>
+                          <option value="Panchakarma">Panchakarma</option>
+                          <option value="Yoga & Naturopathy">Yoga &amp; Naturopathy</option>
+                          <option value="Unani">Unani</option>
+                          <option value="Siddha">Siddha</option>
+                          <option value="Homeopathy">Homeopathy</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Sub-specialty & Qualifications */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Sub-Specialty / Super-focus
+                        </label>
+                        <input
+                          type="text"
+                          value={currentDoctor.subSpecialty}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, subSpecialty: e.target.value })}
+                          placeholder="e.g. Kayachikitsa &amp; Nadi Pariksha"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Qualifications &amp; Degrees *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={currentDoctor.qualifications}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, qualifications: e.target.value })}
+                          placeholder="e.g. BAMS, MD (Kayachikitsa)"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 3: Experience, Hospital & Location */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Experience (Years)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="60"
+                          value={currentDoctor.experienceYears}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, experienceYears: Number(e.target.value) })}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Hospital / Clinic *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={currentDoctor.hospital}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, hospital: e.target.value })}
+                          placeholder="e.g. Charkha AYUSH Hospital"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          City / Location
+                        </label>
+                        <input
+                          type="text"
+                          value={currentDoctor.location}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, location: e.target.value })}
+                          placeholder="e.g. New Delhi"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 4: Fee, Timings, Next Slot */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Consultation Fee (₹)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={currentDoctor.consultationFee}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, consultationFee: Number(e.target.value) })}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Available Timings
+                        </label>
+                        <input
+                          type="text"
+                          value={currentDoctor.availableTimings}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, availableTimings: e.target.value })}
+                          placeholder="Mon - Sat (10 AM - 3 PM)"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Next Slot Display
+                        </label>
+                        <input
+                          type="text"
+                          value={currentDoctor.nextAvailableSlot}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, nextAvailableSlot: e.target.value })}
+                          placeholder="e.g. Today, 4:00 PM"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 5: Registration & Phone */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          AYUSH Registration Number
+                        </label>
+                        <input
+                          type="text"
+                          value={currentDoctor.registrationNumber}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, registrationNumber: e.target.value })}
+                          placeholder="e.g. AYU-DEL-2015-08129"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium font-mono text-[11px]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Contact Number / WhatsApp
+                        </label>
+                        <input
+                          type="text"
+                          value={currentDoctor.phone}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, phone: e.target.value })}
+                          placeholder="e.g. +91 96364 62356"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 6: Rating & Reviews */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Doctor Rating (1.0 to 5.0)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="1"
+                          max="5"
+                          value={currentDoctor.rating}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, rating: Number(e.target.value) })}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Verified Reviews Count
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={currentDoctor.reviewsCount}
+                          onChange={(e) => setCurrentDoctor({ ...currentDoctor, reviewsCount: Number(e.target.value) })}
+                          className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 7: Clinical Expertise Tags */}
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Areas of Clinical Expertise (comma-separated tags)
+                      </label>
+                      <input
+                        type="text"
+                        value={expertiseInput}
+                        onChange={(e) => setExpertiseInput(e.target.value)}
+                        placeholder="Panchakarma, Nadi Pariksha, Joint Pain, Digestive Health, Stress Relief"
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                      />
+                      <p className="text-[10.5px] text-slate-400 mt-1">
+                        These tags appear on your patient-facing doctor card for quick patient discovery.
+                      </p>
+                    </div>
+
+                    {/* Row 8: Languages */}
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Languages Spoken (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={languagesInput}
+                        onChange={(e) => setLanguagesInput(e.target.value)}
+                        placeholder="Hindi, English, Sanskrit"
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                      />
+                    </div>
+
+                    {/* Row 9: About / Clinical Philosophy */}
+                    <div>
+                      <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        About / Clinical Approach
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={currentDoctor.about}
+                        onChange={(e) => setCurrentDoctor({ ...currentDoctor, about: e.target.value })}
+                        placeholder="Brief summary of your clinical expertise and holistic patient approach..."
+                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                      />
+                    </div>
+
+                    {/* Checkbox: Available Today */}
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                      <input
+                        type="checkbox"
+                        id="doctorAvailToday"
+                        checked={currentDoctor.isAvailableToday}
+                        onChange={(e) => setCurrentDoctor({ ...currentDoctor, isAvailableToday: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#0E7C4A] focus:ring-[#0E7C4A] cursor-pointer"
+                      />
+                      <label htmlFor="doctorAvailToday" className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer text-xs">
+                        Mark as &quot;Available Today&quot; (Allows instant online &amp; walk-in consultation booking)
+                      </label>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                      {currentDoctor.isPublished ? (
+                        <button
+                          type="button"
+                          onClick={handleUnpublishDoctorProfile}
+                          className="px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Unpublish from Patient Directory
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                          ⚠️ Profile is currently unpublished / draft.
+                        </span>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="px-6 py-2.5 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white text-xs font-bold shadow-md shadow-emerald-900/20 transition-all cursor-pointer flex items-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Save &amp; Publish Profile</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Right Column: Live Patient Card Preview (5 cols) */}
+                <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-24">
+                  {/* Live Preview Card */}
+                  <div className="bg-gradient-to-br from-[#EAF7EF]/80 via-white to-[#F3FAF6] dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900 p-5 rounded-3xl border border-[#CFEBDB] dark:border-emerald-900/40 shadow-md">
+                    <div className="flex items-center justify-between gap-2 mb-3 pb-3 border-b border-[#D7ECE1] dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#0E7C4A] dark:text-emerald-400">
+                          Live Patient Card Preview
+                        </h4>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                        {currentDoctor.isPublished ? "🟢 Live on /patient" : "⚪ Preview Only"}
+                      </span>
+                    </div>
+
+                    {/* Patient-facing Doctor Card */}
+                    <div className="bg-white dark:bg-slate-900 rounded-[22px] border-[1.4px] border-[#D7ECE1] dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between">
+                      <div>
+                        {/* Top row: Avatar, Name, Verification, Availability */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="relative">
+                              <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-[#0E7C4A] to-[#123B2C] text-white flex items-center justify-center font-bold text-base shadow-sm shrink-0">
+                                {currentDoctor.name ? currentDoctor.name.replace("Dr. ", "").split(" ").map((n) => n[0]).join("").slice(0, 2) : "DR"}
+                              </div>
+                              {currentDoctor.isAvailableToday && (
+                                <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 absolute -bottom-0.5 -right-0.5 animate-pulse" />
+                              )}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                                  {currentDoctor.name || "Dr. Name"}
+                                </h3>
+                                <span className="px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[9.5px] font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-0.5">
+                                  ✓ Verified
+                                </span>
+                              </div>
+
+                              <p className="text-xs font-bold text-[#0E7C4A] dark:text-emerald-400 mt-0.5">
+                                {currentDoctor.specialty} {currentDoctor.subSpecialty ? `• ${currentDoctor.subSpecialty}` : ""}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            currentDoctor.isAvailableToday
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                              : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700"
+                          }`}>
+                            {currentDoctor.isAvailableToday ? "● Available Today" : "○ Offline"}
+                          </span>
+                        </div>
+
+                        {/* Qualifications & Hospital */}
+                        <div className="mt-3 space-y-1">
+                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            {currentDoctor.qualifications || "Degrees"} • <span className="text-slate-500 font-normal">{currentDoctor.experienceYears} yrs experience</span>
+                          </p>
+                          <p className="text-[11.5px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{currentDoctor.hospital || "Hospital / Clinic"}, {currentDoctor.location}</span>
+                          </p>
+                        </div>
+
+                        {/* Rating & Fee Banner */}
+                        <div className="mt-3.5 py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1 text-amber-500 font-bold">
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                            <span>{currentDoctor.rating}</span>
+                            <span className="text-[11px] text-slate-400 font-normal">({currentDoctor.reviewsCount} reviews)</span>
+                          </div>
+                          <div className="font-extrabold text-[#0E7C4A] dark:text-emerald-400">
+                            ₹{currentDoctor.consultationFee} <span className="text-[10px] font-normal text-slate-500">/ session</span>
+                          </div>
+                        </div>
+
+                        {/* Expertise Pills */}
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          {(expertiseInput ? expertiseInput.split(",").map((s) => s.trim()).filter(Boolean) : []).slice(0, 4).map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded-md bg-[#F3FAF6] dark:bg-emerald-950/40 text-[#0A5E39] dark:text-emerald-300 border border-[#D7ECE1] dark:border-emerald-900/40 text-[10px] font-medium"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Next Available Slot */}
+                        <div className="mt-3 text-[11px] text-[#0E7C4A] dark:text-emerald-400 font-medium flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2">
+                          <span className="flex items-center gap-1">
+                            ⚡ Next Slot: <b className="font-bold">{currentDoctor.nextAvailableSlot}</b>
+                          </span>
+                          <span className="text-[10px] text-slate-400">Reg: {currentDoctor.registrationNumber}</span>
+                        </div>
+                      </div>
+
+                      {/* Mock Booking Button */}
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-2.5 px-3 rounded-xl bg-[#0E7C4A]/20 text-[#0E7C4A] dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Book Consultation (Patient View)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Visibility Notice */}
+                    <div className="mt-3 p-3 rounded-xl bg-white/70 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                      <p className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <span>🛡️</span> Zero Mock Doctors Policy
+                      </p>
+                      <p>
+                        Only real doctors who log in and save their profile appear to patients. You can unpublish anytime to temporarily remove yourself from patient bookings.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Quick Queue Switcher Ribbon */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+                  {t("activePatientLabel", "Active Patient:")}
+                </span>
+                {patients.map((p) => {
+                  const isCurrent = p.id === currentPatient.id;
+                  const hasSummary = Boolean(aiIntake && (p.id === aiIntake.patientId || (aiIntake.patientName && p.name === aiIntake.patientName)));
+                  const isRed = hasSummary && aiIntake?.isRedFlag;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedPatientId(p.id)}
+                      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 border cursor-pointer ${
+                        isCurrent
+                          ? "bg-[#0E7C4A] text-white border-[#0E7C4A] shadow-md shadow-emerald-800/20"
+                          : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500"
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${isCurrent ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
+                      <span>{p.name}</span>
+                      {hasSummary && (
+                        <span className={`px-2 py-0.2 rounded-full text-[9.5px] font-extrabold ${
+                          isRed
+                            ? "bg-red-500 text-white animate-pulse"
+                            : isCurrent
+                            ? "bg-white/25 text-white"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                        }`}>
+                          {isRed ? "🚩 Red Flag" : "✨ AI Summary"}
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-mono ${isCurrent ? "text-emerald-100" : "text-slate-400"}`}>
+                        ({p.id})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* AI CLINICAL INTAKE NOTIFICATION BANNER (When AI summary is present) */}
+              {aiIntake && (currentPatient && (currentPatient.id === aiIntake.patientId || (aiIntake.patientName && currentPatient.name === aiIntake.patientName))) && (
+                <div className={`p-4 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in slide-in-from-top-2 ${
+                  aiIntake.isRedFlag
+                    ? "bg-red-50/90 dark:bg-red-950/40 border-red-200 dark:border-red-900/60"
+                    : "bg-gradient-to-r from-[#EAF7EF] to-white dark:from-emerald-950/40 dark:to-slate-900 border-[#CFEBDB] dark:border-emerald-900/50"
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 shadow-sm ${
+                      aiIntake.isRedFlag
+                        ? "bg-red-600 text-white"
+                        : "bg-[#0E7C4A] text-white"
+                    }`}>
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                          AI Pre-Consultation Triage Summary Ready
+                        </h4>
+                        <span className={`px-2 py-0.2 rounded-full text-[10px] font-bold ${
+                          aiIntake.severity === "High"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-200 border border-red-300"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
+                        }`}>
+                          {aiIntake.severity} Intensity • {aiIntake.duration}
+                        </span>
+                        {aiIntake.isRedFlag && (
+                          <span className="px-2 py-0.2 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>CRITICAL RED FLAG</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 font-medium">
+                        Patient reported: &ldquo;{aiIntake.chiefComplaint}&rdquo; • <span className="text-[#0E7C4A] dark:text-emerald-400 font-bold">{aiIntake.predictedDosha}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setShowAIIntakeModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-[#0E7C4A]" />
+                      <span>View AI Summary</span>
+                    </button>
+                    <button
+                      onClick={handleImportAISummary}
+                      className="px-3.5 py-2 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Accept into Case Sheet</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
           {/* ======================================================== */}
           {/* MAIN 2-COLUMN GRID (Matching Layout from Uploaded Image) */}
@@ -957,6 +1760,18 @@ export default function DoctorWorkspacePage() {
                     <span>{t("card3.viewFullHistory", "View Full History")}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
+                  <button
+                    onClick={() => {
+                      const reps = patientReports[currentPatient.id] || [];
+                      setReportsForModal(reps);
+                      setShowReportsModal(true);
+                    }}
+                    className="ml-3 text-[#0E7C4A] dark:text-emerald-400 font-bold hover:underline flex items-center gap-1 text-xs"
+                    disabled={!(patientReports[currentPatient.id] && patientReports[currentPatient.id].length > 0)}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>See Reports</span>
+                  </button>
                 </div>
 
                 {/* Tabs */}
@@ -992,89 +1807,136 @@ export default function DoctorWorkspacePage() {
 
                 {/* Tab 1: Summary Matrix */}
                 {activeTab === "Summary" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                    
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.chiefComplaint", "Chief Complaint")}
-                      </span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {currentPatient.chiefComplaint}
-                      </p>
-                    </div>
+                  <div className="space-y-4 pt-1">
+                    {/* AI Intake Sync Notification Bar */}
+                    {aiIntake && (currentPatient && (currentPatient.id === aiIntake.patientId || (aiIntake.patientName && currentPatient.name === aiIntake.patientName))) && (
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-slate-900 border border-emerald-200/90 dark:border-emerald-800/80 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-xl bg-[#0E7C4A] text-white flex items-center justify-center shrink-0">
+                            <Sparkles className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white">
+                                AI Intake Triage Available: <span className="font-semibold text-slate-700 dark:text-slate-200">&ldquo;{aiIntake.chiefComplaint}&rdquo;</span>
+                              </p>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                aiIntake.severity === "High"
+                                  ? "bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300"
+                                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300"
+                              }`}>
+                                {aiIntake.severity} Intensity • {aiIntake.duration}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              Ayurvedic insight: {aiIntake.predictedDosha} • Agni: {aiIntake.agniAssessment}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowAIIntakeModal(true)}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                          >
+                            Review AI Triage
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleImportAISummary}
+                            className="px-3 py-1.5 rounded-xl bg-[#0E7C4A] hover:bg-[#095934] text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition-all"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Apply to Case Sheet</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.currentMedicines", "Current Medicines")}
-                      </span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {currentPatient.currentMedicines}
-                      </p>
-                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.chiefComplaint", "Chief Complaint")}
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {currentPatient.chiefComplaint}
+                        </p>
+                      </div>
 
-                    <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 space-y-1">
-                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
-                        {t("field.ayushInsights", "AYUSH Insights")}
-                      </span>
-                      <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                        {currentPatient.insights}
-                      </p>
-                    </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.currentMedicines", "Current Medicines")}
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {currentPatient.currentMedicines}
+                        </p>
+                      </div>
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.duration", "Duration")}
-                      </span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {currentPatient.duration}
-                      </p>
-                    </div>
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 space-y-1">
+                        <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                          {t("field.ayushInsights", "AYUSH Insights")}
+                        </span>
+                        <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                          {currentPatient.insights}
+                        </p>
+                      </div>
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.allergies", "Allergies")}
-                      </span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {currentPatient.allergies}
-                      </p>
-                    </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.duration", "Duration")}
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {currentPatient.duration}
+                        </p>
+                      </div>
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.prakriti", "Prakriti")}
-                      </span>
-                      <p className="text-xs font-bold text-[#0E7C4A] dark:text-emerald-300">
-                        {currentPatient.prakriti}
-                      </p>
-                    </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.allergies", "Allergies")}
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {currentPatient.allergies}
+                        </p>
+                      </div>
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.previousTreatment", "Previous Treatment")}
-                      </span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {currentPatient.previousTreatment}
-                      </p>
-                    </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.prakriti", "Prakriti")}
+                        </span>
+                        <p className="text-xs font-bold text-[#0E7C4A] dark:text-emerald-300">
+                          {currentPatient.prakriti}
+                        </p>
+                      </div>
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.familyHistory", "Family History")}
-                      </span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {currentPatient.familyHistory}
-                      </p>
-                    </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.previousTreatment", "Previous Treatment")}
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {currentPatient.previousTreatment}
+                        </p>
+                      </div>
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        {t("field.agni", "Agni")}
-                      </span>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {currentPatient.agni}
-                      </p>
-                    </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.familyHistory", "Family History")}
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {currentPatient.familyHistory}
+                        </p>
+                      </div>
 
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {t("field.agni", "Agni")}
+                        </span>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">
+                          {currentPatient.agni}
+                        </p>
+                      </div>
+
+                    </div>
                   </div>
                 )}
 
@@ -1181,7 +2043,14 @@ export default function DoctorWorkspacePage() {
                     {/* Drag & Drop Visual Area */}
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#0E7C4A] dark:hover:border-emerald-500 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer text-center space-y-2 transition-all group"
+                      onDragOver={(e) => { e.preventDefault(); setIsDoctorDragOver(true); }}
+                      onDragLeave={() => setIsDoctorDragOver(false)}
+                      onDrop={handleDoctorDrop}
+                      className={`p-6 rounded-2xl border-2 border-dashed cursor-pointer text-center space-y-2 transition-all select-none group ${
+                        isDoctorDragOver
+                          ? "border-[#0E7C4A] bg-emerald-50 dark:bg-emerald-950/40 scale-[0.99]"
+                          : "border-slate-300 dark:border-slate-700 hover:border-[#0E7C4A] dark:hover:border-emerald-500 bg-slate-50/60 dark:bg-slate-800/40"
+                      }`}
                     >
                       <div className="w-11 h-11 mx-auto rounded-full bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center text-slate-600 dark:text-slate-300 group-hover:text-[#0E7C4A] group-hover:scale-110 transition-all">
                         <UploadCloud className="w-6 h-6" />
@@ -1197,6 +2066,10 @@ export default function DoctorWorkspacePage() {
 
                       <button
                         type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
                         className="px-4 py-1.5 rounded-xl bg-[#0E7C4A] text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5 hover:bg-[#0A5E39]"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -1609,12 +2482,216 @@ export default function DoctorWorkspacePage() {
 
           </div>
 
+          </>
+          )}
+
         </main>
       </div>
 
       {/* ======================================================== */}
       {/* 3. INTERACTIVE MODALS                                     */}
       {/* ======================================================== */}
+
+      {/* MODAL 0: AI CLINICAL INTAKE SUMMARY MODAL */}
+      {showAIIntakeModal && aiIntake && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+            {/* Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-[#0E7C4A]/10 via-emerald-500/5 to-transparent dark:from-emerald-950/40 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#0E7C4A] text-white flex items-center justify-center shadow-md shadow-[#0E7C4A]/20">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      AI Pre-Consultation Intake Summary
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
+                      {aiIntake.aiProvider}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Patient: <strong className="text-slate-700 dark:text-slate-200">{aiIntake.patientName}</strong> ({aiIntake.patientId}) • {aiIntake.timestamp}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAIIntakeModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              {/* Red Flag Alert if applicable */}
+              {aiIntake.isRedFlag && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-start gap-3 text-rose-800 dark:text-rose-200">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-rose-900 dark:text-rose-100">
+                      🚩 Red Flag Clinical Attention Required
+                    </h4>
+                    <p className="text-xs text-rose-700 dark:text-rose-300">
+                      Patient reported high pain severity or chronic duration exceeding standard safe thresholds. Immediate priority evaluation recommended.
+                    </p>
+                    {aiIntake.redFlagReasons && aiIntake.redFlagReasons.length > 0 && (
+                      <ul className="list-disc list-inside space-y-0.5 pt-1 text-[11px] text-rose-800 dark:text-rose-200 font-medium">
+                        {aiIntake.redFlagReasons.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Status / Acceptance pill */}
+              <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">Status</span>
+                <span className={`font-bold px-2.5 py-0.5 rounded-full text-[11px] ${
+                  aiIntake.status === "Accepted into Case Sheet"
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300"
+                }`}>
+                  {aiIntake.status}
+                </span>
+              </div>
+
+              {/* Key Fields Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chief Complaint</span>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    {aiIntake.chiefComplaint}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pain / Discomfort Severity</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                      aiIntake.severity === "High"
+                        ? "bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300"
+                        : aiIntake.severity === "Medium"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300"
+                    }`}>
+                      {aiIntake.severity} Intensity
+                    </span>
+                    <span className="text-xs text-slate-500">Duration: <strong>{aiIntake.duration}</strong></span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 space-y-1">
+                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Predicted AYUSH Dosha</span>
+                  <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                    {aiIntake.predictedDosha}
+                  </p>
+                  <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80">
+                    Agni: {aiIntake.agniAssessment}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Voice Verification</span>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>{aiIntake.voiceTranscriptVerified ? "Speech-to-Text confirmed by Patient" : "Direct Patient Input"}</span>
+                  </div>
+                  {aiIntake.associatedSymptoms && (
+                    <p className="text-[11px] text-slate-500 pt-0.5">
+                      Associated: {aiIntake.associatedSymptoms}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Verified Dialogue / Chat History Accordion */}
+              {aiIntake.conversationHistory && aiIntake.conversationHistory.length > 0 && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/60 dark:border-slate-800 space-y-2">
+                  <h4 className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-[#0E7C4A]" />
+                    <span>Patient Intake Dialogue History</span>
+                  </h4>
+                  <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
+                    {aiIntake.conversationHistory.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className={`p-2.5 rounded-xl text-xs ${
+                          m.from === "bot"
+                            ? "bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/50 text-slate-700 dark:text-slate-200"
+                            : "bg-[#EAF7EF] dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ml-4 font-medium"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1">
+                          <span>{m.from === "bot" ? "AI Assistant" : aiIntake.patientName}</span>
+                          <span>{m.time}</span>
+                        </div>
+                        <p>{m.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+              <button
+                onClick={() => setShowAIIntakeModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-white dark:hover:bg-slate-800 transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleImportAISummary}
+                className="px-5 py-2.5 rounded-xl bg-[#0E7C4A] hover:bg-[#095934] text-white font-bold flex items-center gap-2 shadow-md shadow-[#0E7C4A]/25 transition-all text-xs"
+              >
+                <Check className="w-4 h-4" />
+                <span>Import & Apply into Case Sheet</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: SEE REPORTS */}
+      {showReportsModal && (
+        <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Patient Reports</h3>
+              <button onClick={() => setShowReportsModal(false)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {reportsForModal && reportsForModal.length > 0 ? (
+                reportsForModal.map((r: any) => (
+                  <div key={r.id || r.name} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-white">{r.name}</div>
+                      <div className="text-[11px] text-slate-500">{r.date} • {r.type} • {r.size || "-"}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {r.url ? (
+                        <a href={r.url} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-xl bg-[#0E7C4A] text-white text-xs font-bold">Open</a>
+                      ) : (
+                        <button className="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-700 text-xs" disabled>No file</button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-slate-500">No reports attached for this patient yet.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL 1: VOICE / TOUCH INTERACTION SIMULATOR */}
       {showVoiceModal && (
@@ -1847,7 +2924,7 @@ export default function DoctorWorkspacePage() {
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-bold text-slate-900 dark:text-white">
-                    Attending Physician: Dr. Meera Sharma
+                    Attending Physician: {currentDoctor.name || '—'}
                   </p>
                   <p className="text-[10px] text-slate-400">MD (Ayurveda Kayachikitsa), Reg. AYU-64219</p>
                 </div>
@@ -1861,7 +2938,7 @@ export default function DoctorWorkspacePage() {
                   <button
                     onClick={() => {
                       setIsDigitallySigned(true);
-                      triggerToast("Case Sheet Digitally Signed by Dr. Meera Sharma.");
+                      triggerToast(`Case Sheet Digitally Signed by ${currentDoctor.name || 'Physician'}.`);
                     }}
                     className="px-4 py-2 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white font-bold text-xs shadow-md flex items-center gap-1.5"
                   >

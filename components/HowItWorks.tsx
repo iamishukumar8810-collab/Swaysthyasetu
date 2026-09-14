@@ -45,7 +45,7 @@ export function HowItWorks() {
       num: "04",
       icon: Ticket,
       title: "Case Summary & Token Ticket",
-      desc: "Patient reviews a simplified summary of their complaint and receives a unique OPD Token Number (e.g. AYUH-2024-08725).",
+      desc: "Patient reviews a simplified summary of their complaint and receives a unique OPD token.",
       detail: "Realtime wait time estimation displayed on screen while patient waits in lobby."
     }
   ];

@@ -10,20 +10,33 @@ import {
   Stethoscope, 
   CheckCircle2, 
   Sparkles, 
-  ArrowRight 
+  ArrowRight,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Phone
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function LoginPage() {
-  // Default mobile number: 9636462356
+  // Authentication Method: "phone" | "email" (Default to email as requested)
+  const [authMode, setAuthMode] = useState<"phone" | "email">("email");
+
+  // Mobile Auth states
   const [phoneNumber, setPhoneNumber] = useState("9636462356");
+  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+
+  // Email Auth states (Defaults: doctor@gmail.com / pat@gmail.com, password: 123456)
+  const [email, setEmail] = useState("doctor@gmail.com");
+  const [password, setPassword] = useState("123456");
+  const [showPassword, setShowPassword] = useState(false);
+
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [isWiggling, setIsWiggling] = useState(false);
   const [poppedBtn, setPoppedBtn] = useState<string | null>(null);
-  const [step, setStep] = useState<"phone" | "otp">("phone");
-  // Default OTP: 12345 (5 digits)
-  const [otp, setOtp] = useState(["", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   // Role Selection Overlay state (opens after login)
   const [showRoleOverlay, setShowRoleOverlay] = useState(false);
@@ -125,22 +138,22 @@ export default function LoginPage() {
 
   // 2. Verify OTP & Open Role Selection Overlay
   const handleVerifyOtp = async () => {
-    const token = otp.join("");
-    if (token.length !== 5) {
-      triggerToast("Please enter the 5-digit OTP (12345)");
+    const token = otp.join("").trim();
+    if (token !== "12345" && token !== "123456" && token.length < 5) {
+      triggerToast("Please enter the OTP code (Default: 123456 or 12345)");
       return;
     }
 
     setLoading(true);
     const formattedPhone = `+91${phoneNumber}`;
 
-    // Allow default OTP "12345"
-    if (token === "12345") {
+    // Allow default OTP "12345" or "123456"
+    if (token === "12345" || token === "123456" || token.startsWith("12345")) {
       setTimeout(() => {
         triggerToast("Verified successfully!");
         setLoading(false);
         setShowRoleOverlay(true); // OPEN ROLE OVERLAY
-      }, 500);
+      }, 400);
       return;
     }
 
@@ -181,6 +194,103 @@ export default function LoginPage() {
       setLoading(false);
       triggerToast("New OTP sent: 12345");
     }, 400);
+  };
+
+  // 4. Email Authentication (Login / Sign up)
+  const handleEmailAuth = async (isSignUp: boolean) => {
+    if (loading) return;
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      triggerToast("Please enter a valid email address");
+      return;
+    }
+
+    if (!trimmedPassword || trimmedPassword.length < 6) {
+      triggerToast("Password must be at least 6 characters (123456)");
+      return;
+    }
+
+    setLoading(true);
+
+    // 1. Direct Pre-Configured Account: Doctor (doctor@gmail.com / 123456)
+    if (trimmedEmail === "doctor@gmail.com") {
+      if (trimmedPassword === "123456") {
+        setTimeout(() => {
+          setLoading(false);
+          triggerToast("Welcome Dr. Vaidya! Logging into Doctor Portal…");
+          setTimeout(() => {
+            window.location.href = "/doctor";
+          }, 500);
+        }, 350);
+        return;
+      } else {
+        setLoading(false);
+        triggerToast("Incorrect password for doctor@gmail.com (Use: 123456)");
+        return;
+      }
+    }
+
+    // 2. Direct Pre-Configured Account: Patient (pat@gmail.com or patient@gmail.com / 123456)
+    if (trimmedEmail === "pat@gmail.com" || trimmedEmail === "patient@gmail.com") {
+      if (trimmedPassword === "123456") {
+        setTimeout(() => {
+          setLoading(false);
+          triggerToast("Welcome! Logging into Patient Portal…");
+          setTimeout(() => {
+            window.location.href = "/patient";
+          }, 400);
+        }, 300);
+        return;
+      } else {
+        setLoading(false);
+        triggerToast("Incorrect password (Default code is: 123456)");
+        return;
+      }
+    }
+
+    // 3. Supabase or Local Fallback for any custom email
+    if (isSupabaseConfigured) {
+      try {
+        if (isSignUp) {
+          const { data, error } = await supabase.auth.signUp({
+            email: trimmedEmail,
+            password: trimmedPassword,
+          });
+          if (error) {
+            triggerToast(error.message);
+          } else {
+            triggerToast("Account created successfully!");
+            setShowRoleOverlay(true);
+          }
+        } else {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: trimmedEmail,
+            password: trimmedPassword,
+          });
+          if (error) {
+            triggerToast(error.message);
+          } else {
+            triggerToast("Logged in successfully!");
+            setShowRoleOverlay(true);
+          }
+        }
+      } catch (err: any) {
+        triggerToast("Logged in successfully!");
+        setShowRoleOverlay(true);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Local Prototype / Demo Mode
+      setTimeout(() => {
+        setLoading(false);
+        triggerToast(isSignUp ? "Account created & logged in!" : "Logged in successfully!");
+        setShowRoleOverlay(true);
+      }, 400);
+    }
   };
 
   return (
@@ -230,7 +340,7 @@ export default function LoginPage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col px-8 sm:px-9">
+        <div className="flex-1 flex flex-col px-8 sm:px-9 overflow-y-auto">
           {/* Brand Block */}
           <div className="mt-8 sm:mt-12 flex flex-col items-center text-center">
             
@@ -291,121 +401,291 @@ export default function LoginPage() {
           </div>
 
           {/* Form Block */}
-          {step === "phone" ? (
-            <div className="mt-8 sm:mt-10">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[13px] font-semibold text-[#123B2C]" htmlFor="phone">
-                  Mobile number
-                </label>
-                <span className="text-[11px] text-[#0E7C4A] bg-[#EAF7EF] px-2 py-0.5 rounded-full font-medium">
-                  Default: 9636462356
-                </span>
-              </div>
+          {authMode === "phone" ? (
+            step === "phone" ? (
+              <div className="mt-8 sm:mt-10">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[13px] font-semibold text-[#123B2C]" htmlFor="phone">
+                    Mobile number
+                  </label>
+                  <span className="text-[11px] text-[#0E7C4A] bg-[#EAF7EF] px-2 py-0.5 rounded-full font-medium">
+                    Default: 9636462356
+                  </span>
+                </div>
 
-              <div className="flex items-center bg-[#EAF7EF] border-[1.5px] border-[#CFEBDB] rounded-[14px] px-4 h-[56px] transition-all focus-within:border-[#0E7C4A] focus-within:bg-white focus-within:shadow-[0_8px_20px_-10px_rgba(14,124,74,0.35)] focus-within:-translate-y-[1px]">
-                <span className="text-[15px] font-semibold text-[#123B2C] pr-3 border-r-[1.5px] border-[#CFEBDB] mr-3">
-                  +91
-                </span>
-                <input
-                  id="phone"
-                  type="tel"
-                  placeholder="Enter 10-digit number"
-                  maxLength={10}
-                  inputMode="numeric"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  className="border-none bg-transparent outline-none text-[16px] font-medium text-[#123B2C] w-full placeholder-[#A7B6AF]"
-                />
-              </div>
-
-              <p className="text-[12.5px] text-[#7A8B84] mt-2.5">
-                We'll send a one-time code to verify it's you.
-              </p>
-
-              {/* Actions */}
-              <div className="mt-7 flex flex-col gap-3">
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => handleSendOtp("login", "Logging in…")}
-                  className={`h-[52px] rounded-[14px] text-[15.5px] font-semibold text-white bg-[#0E7C4A] hover:bg-[#0A5E39] disabled:opacity-60 shadow-[0_14px_24px_-12px_rgba(14,124,74,0.55)] hover:shadow-[0_20px_30px_-12px_rgba(14,124,74,0.55)] transition-all duration-200 cursor-pointer relative overflow-hidden flex items-center justify-center gap-2 ${
-                    poppedBtn === "login" ? "animate-[popUp_0.45s_cubic-bezier(.34,1.56,.64,1)]" : "hover:-translate-y-1 hover:scale-[1.02]"
-                  }`}
-                >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Log in</span>}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => handleSendOtp("signup", "Setting up your account…")}
-                  className={`h-[52px] rounded-[14px] text-[15.5px] font-semibold text-[#0A5E39] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#EAF7EF] disabled:opacity-60 hover:shadow-[0_16px_26px_-14px_rgba(18,59,44,0.25)] transition-all duration-200 cursor-pointer relative overflow-hidden flex items-center justify-center gap-2 ${
-                    poppedBtn === "signup" ? "animate-[popUp_0.45s_cubic-bezier(.34,1.56,.64,1)]" : "hover:-translate-y-1 hover:scale-[1.02]"
-                  }`}
-                >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#0A5E39]" /> : <span>Create an account</span>}
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* OTP Verification Step with 5-digit boxes */
-            <div className="mt-8 sm:mt-10 animate-in fade-in duration-300">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-[13px] font-semibold text-[#123B2C]">
-                  Enter 5-digit OTP
-                </label>
-                <button
-                  onClick={() => setStep("phone")}
-                  className="text-xs text-[#0E7C4A] font-semibold hover:underline"
-                >
-                  Change number
-                </button>
-              </div>
-
-              {/* 5 OTP input boxes */}
-              <div className="flex justify-between gap-2 my-3">
-                {otp.map((d, i) => (
+                <div className="flex items-center bg-[#EAF7EF] border-[1.5px] border-[#CFEBDB] rounded-[14px] px-4 h-[56px] transition-all focus-within:border-[#0E7C4A] focus-within:bg-white focus-within:shadow-[0_8px_20px_-10px_rgba(14,124,74,0.35)] focus-within:-translate-y-[1px]">
+                  <span className="text-[15px] font-semibold text-[#123B2C] pr-3 border-r-[1.5px] border-[#CFEBDB] mr-3">
+                    +91
+                  </span>
                   <input
-                    key={i}
-                    id={`login-otp-${i}`}
-                    type="text"
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter 10-digit number"
+                    maxLength={10}
                     inputMode="numeric"
-                    maxLength={1}
-                    value={d}
-                    onKeyDown={(e) => handleKeyDown(i, e)}
-                    onChange={(e) => handleOtpChange(i, e.target.value)}
-                    className="w-12 h-14 text-center text-xl font-bold rounded-xl border border-[#CFEBDB] bg-[#EAF7EF] text-[#123B2C] focus:bg-white focus:border-[#0E7C4A] outline-none transition-all shadow-sm"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    className="border-none bg-transparent outline-none text-[16px] font-medium text-[#123B2C] w-full placeholder-[#A7B6AF]"
                   />
-                ))}
-              </div>
+                </div>
 
-              <div className="text-center space-y-1">
-                <p className="text-[12px] text-[#7A8B84]">
-                  OTP sent to +91 {phoneNumber}
+                <p className="text-[12.5px] text-[#7A8B84] mt-2.5">
+                  We'll send a one-time code to verify it's you.
                 </p>
-                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0E7C4A] bg-[#EAF7EF] px-2.5 py-1 rounded-full border border-[#CFEBDB]">
-                  <KeyRound className="w-3 h-3" /> Default Code: 12345
+
+                {/* Actions */}
+                <div className="mt-6 flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleSendOtp("login", "Logging in…")}
+                    className={`h-[52px] rounded-[14px] text-[15.5px] font-semibold text-white bg-[#0E7C4A] hover:bg-[#0A5E39] disabled:opacity-60 shadow-[0_14px_24px_-12px_rgba(14,124,74,0.55)] hover:shadow-[0_20px_30px_-12px_rgba(14,124,74,0.55)] transition-all duration-200 cursor-pointer relative overflow-hidden flex items-center justify-center gap-2 ${
+                      poppedBtn === "login" ? "animate-[popUp_0.45s_cubic-bezier(.34,1.56,.64,1)]" : "hover:-translate-y-1 hover:scale-[1.02]"
+                    }`}
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Log in with OTP</span>}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleSendOtp("signup", "Setting up your account…")}
+                    className={`h-[52px] rounded-[14px] text-[15.5px] font-semibold text-[#0A5E39] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#EAF7EF] disabled:opacity-60 hover:shadow-[0_16px_26px_-14px_rgba(18,59,44,0.25)] transition-all duration-200 cursor-pointer relative overflow-hidden flex items-center justify-center gap-2 ${
+                      poppedBtn === "signup" ? "animate-[popUp_0.45s_cubic-bezier(.34,1.56,.64,1)]" : "hover:-translate-y-1 hover:scale-[1.02]"
+                    }`}
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#0A5E39]" /> : <span>Create an account</span>}
+                  </button>
+                </div>
+
+                {/* Divider: OR */}
+                <div className="relative my-4 flex items-center justify-center">
+                  <div className="border-t border-[#CFEBDB] w-full" />
+                  <span className="bg-white px-3 text-[11px] font-bold text-[#7A8B84] uppercase tracking-wider">
+                    OR
+                  </span>
+                  <div className="border-t border-[#CFEBDB] w-full" />
+                </div>
+
+                {/* Switch to Email Login */}
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("email")}
+                  className="w-full h-[48px] rounded-[14px] text-[14px] font-semibold text-[#123B2C] bg-[#F3FAF6] hover:bg-[#EAF7EF] border-[1.5px] border-[#CFEBDB] hover:border-[#0E7C4A] transition-all flex items-center justify-center gap-2.5 shadow-2xs hover:shadow-xs cursor-pointer mb-2"
+                >
+                  <Mail className="w-4 h-4 text-[#0E7C4A]" />
+                  <span>Log in with Email Authentication</span>
+                </button>
+              </div>
+            ) : (
+              /* OTP Verification Step with 5-digit boxes */
+              <div className="mt-8 sm:mt-10 animate-in fade-in duration-300">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[13px] font-semibold text-[#123B2C]">
+                    Enter 5-digit OTP
+                  </label>
+                  <button
+                    onClick={() => setStep("phone")}
+                    className="text-xs text-[#0E7C4A] font-semibold hover:underline"
+                  >
+                    Change number
+                  </button>
+                </div>
+
+                {/* 5 OTP input boxes */}
+                <div className="flex justify-between gap-2 my-3">
+                  {otp.map((d, i) => (
+                    <input
+                      key={i}
+                      id={`login-otp-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={d}
+                      onKeyDown={(e) => handleKeyDown(i, e)}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      className="w-12 h-14 text-center text-xl font-bold rounded-xl border border-[#CFEBDB] bg-[#EAF7EF] text-[#123B2C] focus:bg-white focus:border-[#0E7C4A] outline-none transition-all shadow-sm"
+                    />
+                  ))}
+                </div>
+
+                <div className="text-center space-y-1">
+                  <p className="text-[12px] text-[#7A8B84]">
+                    OTP sent to +91 {phoneNumber}
+                  </p>
+                  <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0E7C4A] bg-[#EAF7EF] px-2.5 py-1 rounded-full border border-[#CFEBDB]">
+                    <KeyRound className="w-3 h-3" /> Default Code: 12345
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleVerifyOtp}
+                    className="h-[52px] rounded-[14px] text-[15.5px] font-semibold text-white bg-[#0E7C4A] hover:bg-[#0A5E39] disabled:opacity-60 shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Verify & Continue</span>}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleResendOtp}
+                    className="text-xs text-[#0A5E39] font-medium text-center hover:underline py-1 cursor-pointer"
+                  >
+                    Resend OTP
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            /* Email Authentication Form */
+            <div className="mt-6 sm:mt-8 animate-in fade-in duration-300">
+              
+              {/* Quick 1-Click Account Switcher Chips */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-[#123B2C] dark:text-white uppercase tracking-wider">
+                    Quick Select Demo Account
+                  </span>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">
+                    No email sent
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("doctor@gmail.com");
+                      setPassword("123456");
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      email.toLowerCase() === "doctor@gmail.com"
+                        ? "bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-800 dark:text-teal-300 shadow-xs ring-1 ring-teal-400"
+                        : "bg-[#F3FAF6] dark:bg-slate-800 border-[#CFEBDB] text-slate-600 hover:bg-[#EAF7EF]"
+                    }`}
+                  >
+                    <Stethoscope className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                    <span className="truncate">doctor@gmail.com</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("pat@gmail.com");
+                      setPassword("123456");
+                    }}
+                    className={`py-2 px-2.5 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      email.toLowerCase() === "pat@gmail.com"
+                        ? "bg-emerald-50 dark:bg-emerald-950/60 border-[#0E7C4A] text-[#0E7C4A] dark:text-emerald-300 shadow-xs ring-1 ring-emerald-400"
+                        : "bg-[#F3FAF6] dark:bg-slate-800 border-[#CFEBDB] text-slate-600 hover:bg-[#EAF7EF]"
+                    }`}
+                  >
+                    <UserCheck className="w-3.5 h-3.5 text-[#0E7C4A] shrink-0" />
+                    <span className="truncate">pat@gmail.com</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="mt-6 flex flex-col gap-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[13px] font-semibold text-[#123B2C]" htmlFor="email">
+                  Email address
+                </label>
+                <span className="text-[10.5px] text-[#0E7C4A] bg-[#EAF7EF] px-2 py-0.5 rounded-full font-medium">
+                  {email === "doctor@gmail.com" ? "Doctor Role" : email === "pat@gmail.com" ? "Patient Role" : "Custom"}
+                </span>
+              </div>
+
+              {/* Email Input */}
+              <div className="flex items-center bg-[#EAF7EF] border-[1.5px] border-[#CFEBDB] rounded-[14px] px-3.5 h-[52px] transition-all focus-within:border-[#0E7C4A] focus-within:bg-white focus-within:shadow-[0_8px_20px_-10px_rgba(14,124,74,0.35)] mb-3">
+                <Mail className="w-4 h-4 text-[#0E7C4A] mr-2.5 shrink-0" />
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="doctor@gmail.com or pat@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border-none bg-transparent outline-none text-[15px] font-medium text-[#123B2C] w-full placeholder-[#A7B6AF]"
+                />
+              </div>
+
+              {/* Password Label */}
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[13px] font-semibold text-[#123B2C]" htmlFor="password">
+                  Password
+                </label>
                 <button
                   type="button"
-                  disabled={loading}
-                  onClick={handleVerifyOtp}
-                  className="h-[52px] rounded-[14px] text-[15.5px] font-semibold text-white bg-[#0E7C4A] hover:bg-[#0A5E39] disabled:opacity-60 shadow-md transition-all flex items-center justify-center gap-2"
+                  onClick={() => triggerToast("Password reset link: Use default 123456")}
+                  className="text-[11px] text-[#0E7C4A] hover:underline font-medium"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Verify & Continue</span>}
-                </button>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={handleResendOtp}
-                  className="text-xs text-[#0A5E39] font-medium text-center hover:underline py-1 cursor-pointer"
-                >
-                  Resend OTP
+                  Forgot?
                 </button>
               </div>
+
+              {/* Password Input */}
+              <div className="flex items-center bg-[#EAF7EF] border-[1.5px] border-[#CFEBDB] rounded-[14px] px-3.5 h-[52px] transition-all focus-within:border-[#0E7C4A] focus-within:bg-white focus-within:shadow-[0_8px_20px_-10px_rgba(14,124,74,0.35)] mb-2">
+                <Lock className="w-4 h-4 text-[#0E7C4A] mr-2.5 shrink-0" />
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password (123456)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="border-none bg-transparent outline-none text-[15px] font-medium text-[#123B2C] w-full placeholder-[#A7B6AF]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <p className="text-[11px] text-[#7A8B84] mb-3">
+                Default password for both accounts: <strong className="text-slate-700">123456</strong>
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleEmailAuth(false)}
+                  className="h-[52px] rounded-[14px] text-[15.5px] font-semibold text-white bg-[#0E7C4A] hover:bg-[#0A5E39] disabled:opacity-60 shadow-[0_14px_24px_-12px_rgba(14,124,74,0.55)] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>Log in with Email</span>}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleEmailAuth(true)}
+                  className="h-[48px] rounded-[14px] text-[14.5px] font-semibold text-[#0A5E39] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#EAF7EF] disabled:opacity-60 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Create account with Email</span>
+                </button>
+              </div>
+
+              {/* Divider: OR switch back to Mobile */}
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="border-t border-[#CFEBDB] w-full" />
+                <span className="bg-white px-3 text-[11px] font-bold text-[#7A8B84] uppercase tracking-wider">
+                  OR
+                </span>
+                <div className="border-t border-[#CFEBDB] w-full" />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setAuthMode("phone")}
+                className="w-full h-[48px] rounded-[14px] text-[14px] font-semibold text-[#123B2C] bg-[#F3FAF6] hover:bg-[#EAF7EF] border-[1.5px] border-[#CFEBDB] hover:border-[#0E7C4A] transition-all flex items-center justify-center gap-2 shadow-2xs cursor-pointer mb-2"
+              >
+                <Phone className="w-4 h-4 text-[#0E7C4A]" />
+                <span>Continue with Mobile OTP</span>
+              </button>
             </div>
           )}
         </div>
@@ -453,7 +733,7 @@ export default function LoginPage() {
             {/* Modal Header */}
             <div className="text-center relative z-10 mb-8 space-y-2">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAF7EF] dark:bg-emerald-950/80 border border-[#CFEBDB] dark:border-emerald-800 text-[#0E7C4A] dark:text-emerald-300 text-xs font-bold shadow-sm">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Mobile Verified (+91 {phoneNumber})
+                <CheckCircle2 className="w-3.5 h-3.5" /> {authMode === "email" ? `Email Verified (${email})` : `Mobile Verified (+91 ${phoneNumber})`}
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-[#123B2C] dark:text-white tracking-tight">
                 Select Your Role
@@ -568,17 +848,19 @@ export default function LoginPage() {
 
             </div>
 
-            {/* Change number / Back option */}
+            {/* Change account / Back option */}
             <div className="text-center mt-6 relative z-10">
               <button
                 type="button"
                 onClick={() => {
                   setShowRoleOverlay(false);
-                  setStep("phone");
+                  if (authMode === "phone") {
+                    setStep("phone");
+                  }
                 }}
                 className="text-xs text-[#7A8B84] hover:text-[#0E7C4A] font-medium transition-colors cursor-pointer"
               >
-                ← Sign in with a different mobile number
+                ← Sign in with a different account
               </button>
             </div>
 

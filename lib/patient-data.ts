@@ -26,6 +26,7 @@ export interface Medication {
   timing: string; // e.g. "Before food" | "After food"
   prescribedBy: string;
   duration: string;
+  instructions?: string;
 }
 
 export interface WellnessGuidance {
@@ -46,6 +47,7 @@ export interface PatientProfile {
   concerns: string[];
   durationOfSymptoms: string; // missing in initial 78% readiness
   dietPreference: string;
+  bloodGroup?: string;
   nextAppointment: {
     scheduled: boolean;
     date?: string;
@@ -63,105 +65,74 @@ export const initialPatientData: {
   wellness: WellnessGuidance;
 } = {
   profile: {
-    id: "P-963646",
-    name: "Ramesh Kumar",
-    phone: "+91 9636462356",
-    age: 45,
-    gender: "Male",
-    abhaId: "14-2345-6789-0123",
-    prakriti: "Pitta-Kapha",
-    concerns: ["Acidity (mild)", "Poor sleep", "General fatigue"],
-    durationOfSymptoms: "", // Empty so readiness is 78% initially!
-    dietPreference: "Vegetarian",
+    id: "",
+    name: "",
+    phone: "",
+    age: 0,
+    gender: "",
+    abhaId: "",
+    prakriti: "",
+    concerns: [],
+    durationOfSymptoms: "",
+    dietPreference: "",
     nextAppointment: {
       scheduled: false,
     },
   },
-  medicines: [
-    {
-      id: "med-1",
-      name: "Avipattikar Churna",
-      dosage: "3g",
-      frequency: "Once daily at bedtime",
-      timing: "After food with lukewarm water",
-      prescribedBy: "Dr. Meera Sharma",
-      duration: "14 days",
-    },
-    {
-      id: "med-2",
-      name: "Sutashekhara Rasa",
-      dosage: "1 tablet (250mg)",
-      frequency: "Twice daily (BD)",
-      timing: "Before meals with honey",
-      prescribedBy: "Dr. Meera Sharma",
-      duration: "10 days",
-    },
-  ],
-  visits: [
-    {
-      id: "vis-1",
-      doctorName: "Dr. Meera Sharma",
-      specialty: "Ayurveda Kayachikitsa",
-      date: "12 Jun 2025",
-      time: "10:30 AM",
-      reason: "Acidity & Sleep Issues",
-      status: "Completed",
-      prescriptionNotes: "Prescribed Pitta-pacifying diet. Advised Avipattikar Churna and Sutashekhara Rasa. Follow-up after 2 weeks.",
-    },
-    {
-      id: "vis-2",
-      doctorName: "Dr. Rohan Patel",
-      specialty: "Ayurveda General OPD",
-      date: "28 Mar 2025",
-      time: "11:15 AM",
-      reason: "General Checkup & Fatigue",
-      status: "Completed",
-      prescriptionNotes: "Vital parameters normal. Mild Agni impairment noted. Advised Triphala and warm water intake.",
-    },
-  ],
-  reports: [
-    {
-      id: "rep-1",
-      name: "Blood Test Report",
-      date: "12 Jun 2025",
-      type: "PDF",
-      size: "1.4 MB",
-    },
-    {
-      id: "rep-2",
-      name: "Vitamin D & B12 Report",
-      date: "28 Mar 2025",
-      type: "PDF",
-      size: "820 KB",
-    },
-    {
-      id: "rep-3",
-      name: "Prescription_DrMeera",
-      date: "28 Mar 2025",
-      type: "Image",
-      size: "2.1 MB",
-    },
-  ],
+  medicines: [],
+  visits: [],
+  reports: [],
   wellness: {
-    diet: {
-      title: "Diet Suggestion",
-      desc: "Light and warm meals, avoid spicy and oily food.",
-      content: "Focus on sweet, bitter, and astringent tastes. Favor ghee, coriander water, coconut water, and soaked almonds. Avoid deep-fried foods, fermented dough, and excessive chilies.",
-    },
-    routine: {
-      title: "Daily Routine (Dinacharya)",
-      desc: "Improve sleep, reduce screen time before bed.",
-      content: "Wake up before sunrise (Brahma Muhurta). Practice 10 minutes of gentle yoga. Stop smartphone usage 1 hour prior to sleep. Apply warm sesame oil to soles of feet.",
-    },
-    herbs: {
-      title: "Herbal Guidance",
-      desc: "Ashwagandha & Brahmi for stress and fatigue.",
-      content: "Take 1/2 tsp of Ashwagandha powder with warm milk at night. Brahmi tea helps pacify mental fatigue and stabilizes Pitta-Vata balance.",
-    },
-    mind: {
-      title: "Mind & Stress (Pranayama)",
-      desc: "Try 5 minutes of deep breathing every day.",
-      content: "Practice Nadi Shodhana (Alternate Nostril Breathing) for 5 minutes and Sheetali Pranayama for cooling the internal body heat.",
-    },
+    diet: { title: "", desc: "", content: "" },
+    routine: { title: "", desc: "", content: "" },
+    herbs: { title: "", desc: "", content: "" },
+    mind: { title: "", desc: "", content: "" },
   },
 };
+
+export const PATIENT_DATA_EVENT = "swasthya_patient_data_updated";
+
+export function getStoredPatientData() {
+  if (typeof window === "undefined") return initialPatientData;
+  try {
+    const saved = localStorage.getItem("swasthya_setu_patient_data");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Clean and remove any legacy mock reports (rep-1, rep-2, rep-3)
+      const cleanedReports = (parsed.reports || []).filter(
+        (r: MedicalReport) => !["rep-1", "rep-2", "rep-3"].includes(r.id)
+      );
+      return {
+        ...initialPatientData,
+        ...parsed,
+        profile: { ...initialPatientData.profile, ...(parsed.profile || {}) },
+        reports: cleanedReports,
+        visits: parsed.visits || initialPatientData.visits,
+        medicines: parsed.medicines || initialPatientData.medicines,
+      };
+    }
+  } catch (e) {
+    console.error("Failed to load patient data from localStorage", e);
+  }
+  return initialPatientData;
+}
+
+export function saveStoredPatientData(data: typeof initialPatientData) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("swasthya_setu_patient_data", JSON.stringify(data));
+    window.dispatchEvent(new Event(PATIENT_DATA_EVENT));
+  } catch (e) {
+    console.error("Failed to save patient data to localStorage", e);
+  }
+}
+
+export function addReportToPatientData(newReport: MedicalReport) {
+  const current = getStoredPatientData();
+  const updated = {
+    ...current,
+    reports: [newReport, ...(current.reports || []).filter((r: MedicalReport) => r.id !== newReport.id)],
+  };
+  saveStoredPatientData(updated);
+  return updated;
+}

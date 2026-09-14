@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   ArrowLeft, 
@@ -19,9 +19,15 @@ import {
   Save
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  AIIntakeSummary,
+  getAIIntakeSummary,
+  subscribeToAIIntake,
+  markAIIntakeAccepted,
+} from "@/lib/aiIntakeStore";
 
 export default function DoctorCaseSheetPage({ params }: { params: { id: string } }) {
-  const tokenId = params.id || "AYUH-2024-08725";
+  const tokenId = params.id || "";
   const [activeTab, setActiveTab] = useState<"summary" | "timeline" | "documents" | "ayush" | "edit">("summary");
   const [isVerified, setIsVerified] = useState(false);
   const [doctorNotes, setDoctorNotes] = useState("Patient advised Pathya Ahara (light diet, avoid fermented/spicy food). Sutashekhara Rasa 1 tab BD and Kamadudha Rasa initiated.");
@@ -33,9 +39,30 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
   const [agni, setAgni] = useState("Tikshna / Vishama (Hyper-acidic)");
   const [koshtha, setKoshtha] = useState("Krura (Mild Constipation)");
 
+  // AI Intake Integration
+  const [aiIntake, setAiIntake] = useState<AIIntakeSummary | null>(null);
+
+  useEffect(() => {
+    setAiIntake(getAIIntakeSummary());
+    const unsub = subscribeToAIIntake((updated) => {
+      setAiIntake(updated);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleApplyAIIntake = () => {
+    if (!aiIntake) return;
+    setChiefComplaint(`${aiIntake.chiefComplaint} (Intensity: ${aiIntake.severity}, Duration: ${aiIntake.duration})`);
+    if (aiIntake.currentMedicines) {
+      setCurrentMeds(aiIntake.currentMedicines);
+    }
+    markAIIntakeAccepted(aiIntake.id);
+    alert("AI Pre-Consultation Intake findings applied to Case Sheet!");
+  };
+
   const handleVerify = () => {
     setIsVerified(true);
-    alert("Case Sheet Verified and Digitally Signed by Dr. Sharma (AYUSH Physician). Ready for Consultation.");
+    alert("Case Sheet Verified and Digitally Signed. Ready for Consultation.");
   };
 
   return (
@@ -60,7 +87,7 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
                   {isVerified ? "Physician Verified ✓" : "AI Pre-Generated Draft"}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">Ramesh Kumar • 45 Y / Male • Token: {tokenId}</p>
+              <p className="text-xs text-slate-500">{aiIntake?.patientName || 'Patient'} • {aiIntake ? `${aiIntake.timestamp}` : '—'} • Token: {tokenId || '—'}</p>
             </div>
           </div>
 
@@ -83,7 +110,7 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
               </button>
             ) : (
               <span className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" /> Signed by Dr. Sharma
+                <CheckCircle2 className="w-4 h-4" /> Signed
               </span>
             )}
             <ThemeToggle />
@@ -116,6 +143,46 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
             </button>
           ))}
         </div>
+
+        {/* Live AI Pre-Consultation Summary if available */}
+        {aiIntake && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-slate-900 border border-emerald-200 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                    Patient AI Clinical Intake: &ldquo;{aiIntake.chiefComplaint}&rdquo;
+                  </h4>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    aiIntake.severity === "High"
+                      ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                      : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                  }`}>
+                    {aiIntake.severity} Intensity • {aiIntake.duration}
+                  </span>
+                  {aiIntake.isRedFlag && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-600 text-white">
+                      🚩 Red Flag Alert
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  AYUSH: {aiIntake.predictedDosha} • Voice Verified: {aiIntake.voiceTranscriptVerified ? "Yes" : "Text"} • {aiIntake.timestamp}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleApplyAIIntake}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Apply to Chief Complaint</span>
+            </button>
+          </div>
+        )}
 
         {/* Attention Flag Banner (Safe Non-Diagnostic Alert) */}
         <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 flex items-start gap-3 text-xs">
@@ -179,9 +246,9 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
               <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 text-xs">
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white">Patient Demographics</h3>
                 <div className="space-y-2">
-                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                     <span className="text-slate-500">Name:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">Ramesh Kumar</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{aiIntake?.patientName || '—'}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                     <span className="text-slate-500">Age / Gender:</span>
@@ -280,7 +347,7 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
                   <p className="text-[10px] text-slate-500">Dr. Verma (BAMS, MD Ayu) • Reg No: AYU-88219</p>
                 </div>
                 <div className="flex justify-between text-[11px]">
-                  <span>Patient: Ramesh Kumar, 45/M</span>
+                  <span>Patient: {aiIntake?.patientName || '—'}, {aiIntake ? `${aiIntake.timestamp}` : '—'}</span>
                   <span>Date: 12 Jan 2024</span>
                 </div>
                 <div className="pt-2">

@@ -217,7 +217,7 @@ export function AuthModal({ isOpen, onClose, initialRole = "patient" }: AuthModa
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Ramesh Kumar"
+                        placeholder="Full name"
                         className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-100"
                       />
                     </div>
