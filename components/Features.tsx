@@ -67,7 +67,7 @@ export function Features() {
       icon: Clock,
       tag: "Efficiency Boost",
       title: "Live OPD Queue & Realtime Sync",
-      desc: "Generates unique tokens (e.g. AYUH-2024-08725). Doctor OPD queue updates instantaneously via Supabase Realtime without page reloads.",
+      desc: "Generates unique tokens. Doctor OPD queue updates instantaneously via Supabase Realtime without page reloads.",
       color: "from-purple-500 to-violet-600",
       bg: "bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800/60",
       badge: "Realtime Sync"

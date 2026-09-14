@@ -132,7 +132,7 @@ export function Hero({ onOpenAuth }: HeroProps = {}) {
                       <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl rounded-tl-none border border-slate-200/60 dark:border-slate-700 shadow-sm">
                         <p className="font-semibold text-emerald-700 dark:text-emerald-400 text-[11px]">AI Assistant:</p>
                         <p className="text-slate-700 dark:text-slate-200 mt-0.5">
-                          "Namaste Ramesh ji! Please tell me, what brings you here today?"
+                          "Namaste! Please tell me, what brings you here today?"
                         </p>
                       </div>
 
@@ -206,9 +206,9 @@ export function Hero({ onOpenAuth }: HeroProps = {}) {
                     </div>
                   </div>
 
-                  <div className="text-center">
+                    <div className="text-center">
                     <span className="inline-block text-[10px] font-mono font-bold bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 px-2.5 py-1 rounded-full">
-                      Token: AYUH-2024-08725
+                      Token: —
                     </span>
                   </div>
                 </div>
@@ -219,10 +219,10 @@ export function Hero({ onOpenAuth }: HeroProps = {}) {
                     <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                       <div>
                         <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <span>Ramesh Kumar</span>
-                          <span className="text-[11px] font-normal text-slate-500">45 Y / Male</span>
+                          <span>Patient Name</span>
+                          <span className="text-[11px] font-normal text-slate-500">—</span>
                         </h4>
-                        <p className="text-[10px] text-slate-400 font-mono">OPD Card: AYUH-2024-08725</p>
+                        <p className="text-[10px] text-slate-400 font-mono">OPD Card: —</p>
                       </div>
                       <span className="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> Ready for Doctor
@@ -263,7 +263,7 @@ export function Hero({ onOpenAuth }: HeroProps = {}) {
                           Physician Action:
                         </span>
                         <p className="text-slate-600 dark:text-slate-400">
-                          Dr. Sharma can edit, add Nadi Pariksha notes, and click "Generate Verified Case Sheet".
+                          The attending physician can edit, add clinical notes, and click "Generate Verified Case Sheet".
                         </p>
                       </div>
                     </div>
@@ -271,7 +271,7 @@ export function Hero({ onOpenAuth }: HeroProps = {}) {
 
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                     <Link
-                      href="/doctor/case-sheet/AYUH-2024-08725"
+                      href="/doctor/case-sheet"
                       className="text-xs font-semibold text-teal-700 dark:text-teal-300 hover:underline flex items-center gap-1"
                     >
                       View Full Clinical Workspace <ArrowRight className="w-3.5 h-3.5" />

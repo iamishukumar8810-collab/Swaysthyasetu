@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import Chatbot from "@/components/Chatbot";
 import { useLanguage } from "@/context/LanguageContext";
 import { 
   initialPatientData, 
@@ -53,6 +54,7 @@ import {
   ConsultationVisit, 
   MedicalReport 
 } from "@/lib/patient-data";
+import { DoctorProfile, getDoctors, subscribeToDoctors } from "@/lib/doctorStore";
 
 export default function PatientDashboardPage() {
   const { t, language } = useLanguage();
@@ -70,12 +72,25 @@ export default function PatientDashboardPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [aiChatHistory, setAiChatHistory] = useState<Array<{ role: "user" | "ai"; text: string; time: string }>>([]);
-  
+
+  // Doctors directory (published doctors)
+  const [doctors, setDoctors] = useState<DoctorProfile[]>([]);
+
+  useEffect(() => {
+    try {
+      setDoctors(getDoctors());
+      const unsub = subscribeToDoctors((updated) => setDoctors(updated || []));
+      return () => unsub && unsub();
+    } catch (e) {
+      console.error("Failed to load doctors directory", e);
+    }
+  }, []);
+
   // Notification dropdown
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([
     { id: 1, title: "Report Processed", desc: "Blood Test Report extracted successfully via OCR.", time: "10 mins ago", read: false },
-    { id: 2, title: "Follow-up Reminder", desc: "Dr. Meera Sharma suggested an Agni checkup this week.", time: "2 hours ago", read: false },
+    { id: 2, title: "Follow-up Reminder", desc: "Your physician suggested an Agni checkup this week.", time: "2 hours ago", read: false },
   ]);
 
   // Toast feedback
@@ -90,12 +105,14 @@ export default function PatientDashboardPage() {
   const [showWellnessModal, setShowWellnessModal] = useState<{ open: boolean; title: string; desc: string; content: string } | null>(null);
 
   // Form states for modals
-  const [newApptDoctor, setNewApptDoctor] = useState("Dr. Meera Sharma (Kayachikitsa)");
+  const [newApptDoctor, setNewApptDoctor] = useState("");
   const [newApptDate, setNewApptDate] = useState("Tomorrow, 10:30 AM");
   const [newApptReason, setNewApptReason] = useState("Acidity and stomach discomfort follow-up");
 
   const [newReportName, setNewReportName] = useState("");
   const [newReportType, setNewReportType] = useState<"PDF" | "Image" | "Lab">("PDF");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const [durationInput, setDurationInput] = useState("");
 
@@ -134,7 +151,6 @@ export default function PatientDashboardPage() {
     if (hour < 17) return "Good Afternoon";
     return "Good Evening";
   };
-
   // Dynamic Case Readiness Score Calculation
   const calculateReadiness = () => {
     let score = 78; // Base with 5 items checked
@@ -191,20 +207,46 @@ export default function PatientDashboardPage() {
     triggerToast("Scheduled appointment cancelled.");
   };
 
+  const handleFileSelection = (file?: File | null) => {
+    if (!file) return;
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"]; 
+    const isAllowed = file.type === "application/pdf" || /^image\/(jpeg|png|webp)$/i.test(file.type);
+
+    if (!isAllowed) {
+      triggerToast("Please upload a PDF, JPG, PNG, or WEBP file.");
+      return;
+    }
+
+    setSelectedFile(file);
+    if (!newReportName.trim()) {
+      setNewReportName(file.name.replace(/\.[^/.]+$/, ""));
+    }
+  };
+
   // Uploading Report Action
   const handleUploadReport = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!selectedFile) {
+      triggerToast("Please choose a file to upload");
+      return;
+    }
+
     if (!newReportName.trim()) {
       triggerToast("Please enter a name for the report");
       return;
     }
+
+    const fileSize = `${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`;
+    const url = URL.createObjectURL(selectedFile);
 
     const newReport: MedicalReport = {
       id: `rep-${Date.now()}`,
       name: newReportName.trim(),
       date: "Today • " + new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
       type: newReportType,
-      size: "1.8 MB",
+      size: fileSize,
+      url,
     };
 
     const updated = {
@@ -214,6 +256,8 @@ export default function PatientDashboardPage() {
 
     savePatientData(updated);
     setNewReportName("");
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setShowUploadModal(false);
     triggerToast(`Report "${newReport.name}" uploaded & queued for OCR!`);
   };
@@ -267,7 +311,7 @@ export default function PatientDashboardPage() {
 
     setTimeout(() => {
       // Dynamic response tailored to symptoms
-      let aiReply = "Namaste Ramesh ji. I have analyzed your symptoms. ";
+      let aiReply = "Namaste! I have analyzed your symptoms. ";
       const lower = userText.toLowerCase();
 
       if (lower.includes("pet") || lower.includes("stomach") || lower.includes("acid") || lower.includes("jalan") || lower.includes("burn")) {
@@ -275,7 +319,7 @@ export default function PatientDashboardPage() {
       } else if (lower.includes("sleep") || lower.includes("neend") || lower.includes("tired") || lower.includes("fatigue")) {
         aiReply += "Disturbed sleep and fatigue indicate Vata vitiation. Practice 5 minutes of Sheetali Pranayama before sleeping, and take 1/2 teaspoon of Ashwagandha powder with warm milk at bedtime.";
       } else {
-        aiReply += "I have documented these symptoms into your pre-consultation sheet. Dr. Meera Sharma will review them during your OPD consultation.";
+        aiReply += "I have documented these symptoms into your pre-consultation sheet. The attending physician will review them during your OPD consultation.";
       }
 
       // Automatically add new symptom to patient concerns if not already present
@@ -315,13 +359,7 @@ export default function PatientDashboardPage() {
     }
   };
 
-  // Reset to initial mock data
-  const handleResetDemoData = () => {
-    localStorage.removeItem("swasthya_setu_patient_data");
-    setPatientData(initialPatientData);
-    setAiChatHistory([]);
-    triggerToast("Reset to default demo data!");
-  };
+  // Removed demo reset to avoid persisting mock/demo data in production
 
   // Filtering based on Search Query
   const filteredVisits = patientData.visits.filter((v) =>
@@ -416,13 +454,7 @@ export default function PatientDashboardPage() {
             <Leaf className="absolute -bottom-2 -right-2 w-16 h-16 text-[#0E7C4A]/15 dark:text-emerald-400/10 pointer-events-none" />
           </div>
 
-          <button
-            onClick={handleResetDemoData}
-            className="w-full py-1.5 text-[11px] font-medium text-[#7A8B84] hover:text-[#0E7C4A] flex items-center justify-center gap-1 cursor-pointer transition-colors"
-            title="Reset to default initial data"
-          >
-            <RotateCcw className="w-3 h-3" /> Reset Demo Data
-          </button>
+          {/* Demo reset removed to prevent restoring mock/sample data */}
         </div>
       </aside>
 
@@ -1274,9 +1306,15 @@ export default function PatientDashboardPage() {
                   onChange={(e) => setNewApptDoctor(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-[#CFEBDB] bg-[#F4F9F6] dark:bg-slate-800 text-slate-800 dark:text-white outline-none"
                 >
-                  <option value="Dr. Meera Sharma (Kayachikitsa)">Dr. Meera Sharma (MD Ayurveda - Kayachikitsa)</option>
-                  <option value="Dr. Rohan Patel (General OPD)">Dr. Rohan Patel (BAMS - General OPD)</option>
-                  <option value="Dr. Rajesh Vaidya (Panchakarma)">Dr. Rajesh Vaidya (Panchakarma Specialist)</option>
+                  {doctors.length > 0 ? (
+                    doctors.map((d) => (
+                      <option key={d.id} value={`${d.name} (${d.specialty})`}>
+                        {d.name} — {d.specialty} (₹{d.consultationFee})
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>No registered AYUSH doctors available</option>
+                  )}
                 </select>
               </div>
 
@@ -1376,10 +1414,27 @@ export default function PatientDashboardPage() {
                 </div>
               </div>
 
-              <div className="border-2 border-dashed border-[#CFEBDB] rounded-2xl p-6 text-center space-y-1.5 cursor-pointer hover:bg-[#EAF7EF]/40 transition-colors">
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleFileSelection(e.dataTransfer.files?.[0] || null);
+                }}
+                className="border-2 border-dashed border-[#CFEBDB] rounded-2xl p-6 text-center space-y-1.5 cursor-pointer hover:bg-[#EAF7EF]/40 transition-colors"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  className="hidden"
+                  onChange={(e) => handleFileSelection(e.target.files?.[0] || null)}
+                />
                 <FileUp className="w-8 h-8 text-[#0E7C4A] mx-auto" />
-                <span className="font-bold text-[#123B2C] dark:text-white block text-xs">Choose file or drag & drop</span>
-                <p className="text-[10px] text-[#7A8B84]">Supported: PDF, JPG, PNG up to 15MB</p>
+                <span className="font-bold text-[#123B2C] dark:text-white block text-xs">
+                  {selectedFile ? selectedFile.name : "Choose file or drag & drop"}
+                </span>
+                <p className="text-[10px] text-[#7A8B84]">Supported: PDF, JPG, PNG, WEBP up to 15MB</p>
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
