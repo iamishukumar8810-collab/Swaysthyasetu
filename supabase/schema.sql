@@ -297,6 +297,14 @@ $$;
 
 drop policy if exists profiles_self on public.profiles;
 create policy profiles_self on public.profiles for all using (id = auth.uid()) with check (id = auth.uid());
+drop policy if exists profiles_published_doctor_read on public.profiles;
+create policy profiles_published_doctor_read on public.profiles for select using (
+  exists (
+    select 1 from public.doctor_profiles
+    where doctor_profiles.user_id = profiles.id
+      and doctor_profiles.is_published = true
+  )
+);
 drop policy if exists doctors_public_read on public.doctor_profiles;
 create policy doctors_public_read on public.doctor_profiles for select using (is_published = true or user_id = auth.uid());
 drop policy if exists doctors_self_write on public.doctor_profiles;
