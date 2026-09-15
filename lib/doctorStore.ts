@@ -23,8 +23,149 @@ export interface DoctorProfile {
   isAvailableToday: boolean;
   isAyushVerified: boolean;
   isPublished: boolean;
+  isSeedDoctor?: boolean;
   createdAt: string;
 }
+
+export interface QueuedPatientReport {
+  id: string;
+  name: string;
+  type: string;
+  size?: string;
+  url?: string;
+  date?: string;
+  isGeneratedSummary?: boolean;
+}
+
+export interface QueuedPatient {
+  id: string;
+  userId: string;
+  name: string;
+  age: number;
+  gender: string;
+  phone: string;
+  language?: string;
+  token?: string;
+  status: "Waiting" | "In Consultation" | "Completed" | "Triaged" | string;
+  issue: string;
+  chiefComplaint: string;
+  severity: "Mild" | "Medium" | "High" | "mild" | "moderate" | "severe" | string;
+  duration?: string;
+  time: string;
+  date: string;
+  prakriti?: string;
+  assignedDoctorId?: string;
+  assignedDoctorName?: string;
+  assignedDoctorSpecialty?: string;
+  reports: QueuedPatientReport[];
+  reportsCount: number;
+  summaryPdfUrl?: string;
+  summaryPdfName?: string;
+  submittedAt: string;
+}
+
+export const DEFAULT_AYUSH_DOCTORS: DoctorProfile[] = [
+  {
+    id: "doc-ayur-1",
+    name: "Dr. Rajesh Sharma",
+    specialty: "Ayurveda",
+    subSpecialty: "Kayachikitsa & Nadi Pariksha",
+    qualifications: "BAMS, MD (Ayurveda - BHU)",
+    experienceYears: 14,
+    hospital: "Charkha AYUSH Superspeciality Hospital",
+    location: "New Delhi",
+    rating: 4.9,
+    reviewsCount: 84,
+    consultationFee: 500,
+    availableTimings: "Mon - Sat (10:00 AM - 04:00 PM)",
+    nextAvailableSlot: "Today, 4:00 PM",
+    languages: ["Hindi", "English", "Sanskrit"],
+    expertise: ["Nadi Pariksha", "Digestive Health", "Joint Pain", "Panchakarma"],
+    about: "Senior Ayurvedic Consultant specializing in classical pulse diagnosis, gut metabolism (Agni), and holistic chronic care.",
+    phone: "+91 98765 43210",
+    registrationNumber: "AYU-DEL-2012-04812",
+    isAvailableToday: true,
+    isAyushVerified: true,
+    isPublished: true,
+    isSeedDoctor: true,
+    createdAt: "2026-01-10T00:00:00.000Z",
+  },
+  {
+    id: "doc-panch-2",
+    name: "Dr. Ananya Iyer",
+    specialty: "Panchakarma",
+    subSpecialty: "Detoxification & Neurological Wellness",
+    qualifications: "BAMS, MD (Panchakarma - Kerala)",
+    experienceYears: 11,
+    hospital: "Kerala Ayurveda Wellness Center",
+    location: "Bengaluru",
+    rating: 4.8,
+    reviewsCount: 62,
+    consultationFee: 600,
+    availableTimings: "Mon - Fri (09:00 AM - 02:00 PM)",
+    nextAvailableSlot: "Tomorrow, 10:30 AM",
+    languages: ["English", "Hindi", "Malayalam"],
+    expertise: ["Vamana", "Virechana", "Shirodhara", "Spine Care"],
+    about: "Specialist in authentic Panchakarma cleansing therapies and musculoskeletal rehabilitation.",
+    phone: "+91 98111 22334",
+    registrationNumber: "AYU-KAR-2015-09231",
+    isAvailableToday: true,
+    isAyushVerified: true,
+    isPublished: true,
+    isSeedDoctor: true,
+    createdAt: "2026-01-12T00:00:00.000Z",
+  },
+  {
+    id: "doc-homeo-3",
+    name: "Dr. Priya Nair",
+    specialty: "Homeopathy",
+    subSpecialty: "Constitutional Prescribing & Chronic Allergies",
+    qualifications: "BHMS, MD (Homeopathy - NIH)",
+    experienceYears: 9,
+    hospital: "Central Homoeopathic Care Clinic",
+    location: "Mumbai",
+    rating: 4.9,
+    reviewsCount: 57,
+    consultationFee: 450,
+    availableTimings: "Mon - Sat (11:00 AM - 05:00 PM)",
+    nextAvailableSlot: "Today, 5:30 PM",
+    languages: ["English", "Hindi", "Marathi"],
+    expertise: ["Skin Disorders", "Pediatric Health", "Respiratory Allergies", "Migraine"],
+    about: "Classical Homoeopathic practitioner focusing on gentle, non-toxic root-cause constitutional healing.",
+    phone: "+91 98222 33445",
+    registrationNumber: "HOM-MAH-2017-06192",
+    isAvailableToday: true,
+    isAyushVerified: true,
+    isPublished: true,
+    isSeedDoctor: true,
+    createdAt: "2026-01-15T00:00:00.000Z",
+  },
+  {
+    id: "doc-yoga-4",
+    name: "Dr. Arvind Joshi",
+    specialty: "Yoga & Naturopathy",
+    subSpecialty: "Therapeutic Yoga & Lifestyle Medicine",
+    qualifications: "BNYS, PhD (Yoga Therapy - SVYASA)",
+    experienceYears: 12,
+    hospital: "Prakriti Holistic Healing Sanctuary",
+    location: "Pune",
+    rating: 4.9,
+    reviewsCount: 73,
+    consultationFee: 400,
+    availableTimings: "Mon - Sat (07:00 AM - 01:00 PM)",
+    nextAvailableSlot: "Today, 2:00 PM",
+    languages: ["Hindi", "English", "Gujarati"],
+    expertise: ["Metabolic Disorders", "Hypertension", "Pranayama Therapy", "Diet Therapy"],
+    about: "Clinical Naturopath and Yoga physician helping reverse lifestyle conditions through circadian Ahara-Vihara alignment.",
+    phone: "+91 98333 44556",
+    registrationNumber: "NAT-MAH-2014-03184",
+    isAvailableToday: true,
+    isAyushVerified: true,
+    isPublished: true,
+    isSeedDoctor: true,
+    createdAt: "2026-01-20T00:00:00.000Z",
+  },
+];
 
 const STORAGE_KEY = "swasthya_setu_doctors";
 const CURRENT_DOCTOR_KEY = "swasthya_setu_current_doctor_profile";
@@ -33,35 +174,62 @@ const DOCTOR_QUEUE_KEY = "swasthya_doctor_queue";
 const DOCTOR_QUEUE_UPDATED_EVENT = "swasthya_doctor_queue_updated";
 
 /**
- * Filter out legacy mock doctors if any were previously written to localStorage
+ * Check if a doctor is a default hardcoded seed doctor
  */
-function filterOutMockDoctors(docs: any[]): DoctorProfile[] {
-  // Accept any stored doctor objects that have a valid id
-  return docs.filter((d) => d && d.id);
+function isSeedDoctorId(id: string): boolean {
+  return (
+    id === "doc-ayur-1" ||
+    id === "doc-panch-2" ||
+    id === "doc-homeo-3" ||
+    id === "doc-yoga-4"
+  );
 }
 
 /**
- * Retrieve all registered & published doctors from localStorage
- * NO mock or hardcoded doctors! Only returns real registered doctors.
+ * Retrieve all published doctors from localStorage.
+ * When a real doctor publishes their profile via the Doctor Listing page,
+ * ONLY the real published doctor(s) are returned instead of the hardcoded seed doctors.
  */
 export function getDoctors(): DoctorProfile[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return DEFAULT_AYUSH_DOCTORS;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return [];
-    const parsed = JSON.parse(saved);
-    if (Array.isArray(parsed)) {
-      const filtered = filterOutMockDoctors(parsed);
-      // Clean up storage if legacy mock was present
-      if (filtered.length !== parsed.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-      }
-      return filtered;
+    let list: DoctorProfile[] = [];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          list = parsed.filter((d) => d && d.name && d.name.trim());
+        }
+      } catch (e) {}
     }
-    return [];
+
+    // Also check current logged-in doctor profile
+    const currentDoc = getCurrentDoctorProfile();
+    if (currentDoc && currentDoc.isPublished && currentDoc.name && currentDoc.name.trim()) {
+      const exists = list.some(
+        (d) => (d.id && d.id === currentDoc.id) || d.name.toLowerCase() === currentDoc.name.toLowerCase()
+      );
+      if (!exists) {
+        list = [currentDoc, ...list];
+      }
+    }
+
+    // Check if any real (user-published, non-seed) doctor exists
+    const realPublishedDoctors = list.filter(
+      (d) => d.isPublished && !d.isSeedDoctor && !isSeedDoctorId(d.id)
+    );
+
+    // If real doctors have been published, show ONLY real published doctors!
+    if (realPublishedDoctors.length > 0) {
+      return realPublishedDoctors;
+    }
+
+    // If no real doctor has been published yet, return DEFAULT_AYUSH_DOCTORS as initial preview
+    return DEFAULT_AYUSH_DOCTORS;
   } catch (err) {
     console.error("Error reading doctors from localStorage", err);
-    return [];
+    return DEFAULT_AYUSH_DOCTORS;
   }
 }
 
@@ -81,30 +249,50 @@ export function getCurrentDoctorProfile(): DoctorProfile | null {
 }
 
 /**
- * Save / Publish the current logged-in doctor's profile
- * Saves both to current doctor session and public doctors directory
+ * Save / Publish the current doctor's profile.
+ * When published, this automatically removes any hardcoded seed doctors from the public directory
+ * so that patients ONLY see the real published doctor(s).
  */
 export function saveCurrentDoctorProfile(doctor: DoctorProfile): DoctorProfile {
   if (typeof window === "undefined") return doctor;
   try {
+    const doctorId =
+      doctor.id && doctor.id.trim()
+        ? doctor.id
+        : `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
     const publishedDoctor: DoctorProfile = {
       ...doctor,
+      id: doctorId,
       isPublished: true,
+      isSeedDoctor: false,
     };
 
-    // Save as current doctor
+    // 1. Save as current doctor session
     localStorage.setItem(CURRENT_DOCTOR_KEY, JSON.stringify(publishedDoctor));
 
-    // Update public directory
-    const existing = getDoctors();
-    const index = existing.findIndex((d) => d.id === publishedDoctor.id);
-    let updated: DoctorProfile[];
-    if (index >= 0) {
-      updated = [...existing];
-      updated[index] = publishedDoctor;
-    } else {
-      updated = [publishedDoctor, ...existing];
-    }
+    // 2. Read existing doctors and purge any hardcoded seed doctors
+    let existingList: DoctorProfile[] = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          existingList = parsed;
+        }
+      }
+    } catch (e) {}
+
+    const realExisting = existingList.filter(
+      (d) =>
+        d &&
+        d.id !== publishedDoctor.id &&
+        !d.isSeedDoctor &&
+        !isSeedDoctorId(d.id)
+    );
+
+    // Only real published doctors remain in storage!
+    const updated = [publishedDoctor, ...realExisting];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
     dispatchUpdateEvent();
@@ -121,12 +309,17 @@ export function saveCurrentDoctorProfile(doctor: DoctorProfile): DoctorProfile {
 export function unpublishCurrentDoctorProfile(doctorId: string): void {
   if (typeof window === "undefined") return;
   try {
-    const existing = getDoctors();
+    let existing: DoctorProfile[] = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) existing = JSON.parse(raw);
+    } catch (e) {}
+
     const updated = existing.filter((d) => d.id !== doctorId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
     const current = getCurrentDoctorProfile();
-    if (current && current.id === doctorId) {
+    if (current && (current.id === doctorId || !doctorId)) {
       localStorage.setItem(
         CURRENT_DOCTOR_KEY,
         JSON.stringify({ ...current, isPublished: false })
@@ -173,7 +366,7 @@ export function subscribeToDoctors(callback: (doctors: DoctorProfile[]) => void)
   };
 }
 
-export function getDoctorQueue(): any[] {
+export function getDoctorQueue(): QueuedPatient[] {
   if (typeof window === "undefined") return [];
   try {
     const saved = localStorage.getItem(DOCTOR_QUEUE_KEY);
@@ -186,7 +379,7 @@ export function getDoctorQueue(): any[] {
   return [];
 }
 
-export function addPatientToQueue(patient: any) {
+export function addPatientToQueue(patient: QueuedPatient | any) {
   if (typeof window === "undefined") return;
   try {
     const existing = getDoctorQueue();
@@ -202,7 +395,7 @@ export function addPatientToQueue(patient: any) {
   }
 }
 
-export function subscribeToDoctorQueue(callback: (queue: any[]) => void): () => void {
+export function subscribeToDoctorQueue(callback: (queue: QueuedPatient[]) => void): () => void {
   if (typeof window === "undefined") return () => {};
 
   const handleUpdate = () => callback(getDoctorQueue());
@@ -220,4 +413,45 @@ export function subscribeToDoctorQueue(callback: (queue: any[]) => void): () => 
     window.removeEventListener(DOCTOR_QUEUE_UPDATED_EVENT, handleUpdate);
     window.removeEventListener("storage", handleStorage);
   };
+}
+
+/**
+ * Downloads a patient's medical report or AI clinical summary
+ */
+export function downloadPatientReport(report: QueuedPatientReport) {
+  if (typeof window === "undefined") return;
+  const fileName = report.name || "Medical_Report.pdf";
+
+  if (report.url && report.url.startsWith("data:")) {
+    const link = document.createElement("a");
+    link.href = report.url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return;
+  }
+
+  if (report.url && (report.url.startsWith("http://") || report.url.startsWith("https://") || report.url.startsWith("blob:"))) {
+    const link = document.createElement("a");
+    link.href = report.url;
+    link.download = fileName;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return;
+  }
+
+  // Fallback: create synthetic clinical document download
+  const content = `SWASTHYA SETU - AYUSH CLINICAL REPORT\n=======================================\nDocument: ${report.name}\nType: ${report.type || "Medical Record"}\nDate: ${report.date || new Date().toLocaleDateString()}\nStatus: Verified Clinical Intake Record\n\nThis clinical document was submitted by the patient for doctor review.`;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = fileName.endsWith(".pdf") || fileName.endsWith(".txt") ? fileName : `${fileName}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 }

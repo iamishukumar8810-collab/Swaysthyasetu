@@ -98,17 +98,30 @@ export function getStoredPatientData() {
     const saved = localStorage.getItem("swasthya_setu_patient_data");
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Clean and remove any legacy mock reports (rep-1, rep-2, rep-3)
+      // Clean and remove any legacy mock reports, visits, and medicines
       const cleanedReports = (parsed.reports || []).filter(
         (r: MedicalReport) => !["rep-1", "rep-2", "rep-3"].includes(r.id)
       );
+      const cleanedVisits = (parsed.visits || []).filter(
+        (v: ConsultationVisit) => !["vis-1", "vis-2"].includes(v.id)
+      );
+      const cleanedMedicines = (parsed.medicines || []).filter(
+        (m: Medication) => !["med-1", "med-2"].includes(m.id)
+      );
+
+      const profile = { ...(parsed.profile || {}) };
+      if (profile.name === "Ramesh Kumar") profile.name = "";
+      if (profile.id === "P-963646") profile.id = "";
+      if (profile.phone === "+91 9636462356" || profile.phone === "9636462356") profile.phone = "";
+      if (profile.abhaId === "14-2345-6789-0123") profile.abhaId = "";
+
       return {
         ...initialPatientData,
         ...parsed,
-        profile: { ...initialPatientData.profile, ...(parsed.profile || {}) },
+        profile: { ...initialPatientData.profile, ...profile },
         reports: cleanedReports,
-        visits: parsed.visits || initialPatientData.visits,
-        medicines: parsed.medicines || initialPatientData.medicines,
+        visits: cleanedVisits,
+        medicines: cleanedMedicines,
       };
     }
   } catch (e) {

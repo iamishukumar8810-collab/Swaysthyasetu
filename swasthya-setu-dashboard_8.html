@@ -1,0 +1,2499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Swasthya Setu — Patient Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green-primary:#0E7C4A;
+    --green-dark:#0A5E39;
+    --green-light:#1FA968;
+    --mint:#EAF7EF;
+    --mint-soft:#F3FAF6;
+    --mint-border:#D7ECE1;
+    --ink:#123B2C;
+    --muted:#6C7D76;
+    --white:#FFFFFF;
+    --warn:#D98A1B;
+    --warn-bg:#FDF3E3;
+    --sky:#EAF3FB;
+    --sky-soft:#F5F9FD;
+    --sky-border:#D7E7F5;
+    --sky-blue:#2E6FA3;
+    --sky-blue-dark:#1F5580;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:var(--mint-soft);
+  }
+  a{ text-decoration:none; color:inherit; }
+
+  .app{ display:flex; min-height:100vh; }
+
+  /* ===================== SIDEBAR ===================== */
+  .sidebar{
+    width:246px; background:var(--white); border-right:1px solid var(--mint-border);
+    flex-shrink:0; display:flex; flex-direction:column; padding:22px 16px;
+    position:sticky; top:0; height:100vh;
+  }
+  .side-brand{ display:flex; align-items:center; gap:12px; padding:8px 10px 26px; }
+  .side-brand svg{ width:58px; height:58px; }
+  .side-brand-text b{ display:block; font-family:'Manrope',sans-serif; font-weight:800; font-size:16.5px; }
+  .side-brand-text span{ font-size:10.5px; color:var(--muted); }
+
+  .nav-item{
+    display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:10px;
+    font-size:13.5px; font-weight:600; color:var(--ink); cursor:pointer; margin-bottom:2px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .nav-item .ic{ width:18px; height:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--green-primary); }
+  .nav-item .ic svg{ width:17px; height:17px; stroke:currentColor; fill:none; }
+  .nav-item:hover{ background:var(--mint); }
+  .nav-item.active{ background:var(--green-primary); color:#fff; }
+  .nav-item.active .ic{ color:#fff; }
+
+  .nav-badge-new{
+    margin-left:auto; font-size:9.5px; font-weight:800; color:var(--green-primary);
+    background:var(--mint); border-radius:20px; padding:2px 7px;
+  }
+  .nav-item.active .nav-badge-new{ background:rgba(255,255,255,0.25); color:#fff; }
+  .nav-badge-count{
+    margin-left:auto; font-size:10px; font-weight:800; color:#fff;
+    background:#E0553D; border-radius:20px; padding:1px 7px;
+  }
+
+  .nav-emergency{
+    background:rgba(224,85,61,0.08);
+    color:#B7402A;
+    border:1px solid rgba(224,85,61,0.18);
+    margin-top:6px;
+  }
+  .nav-emergency .ic{ color:#D9503A; }
+  .nav-emergency:hover{ background:rgba(224,85,61,0.14); }
+
+  .side-promo{
+    margin-top:auto; background:var(--mint); border-radius:16px; padding:20px 16px;
+    position:relative; overflow:hidden; cursor:pointer; transition:transform .15s ease;
+  }
+  .side-promo:hover{ transform:translateY(-2px); }
+  .side-promo b{ font-family:'Manrope',sans-serif; font-size:14px; display:block; line-height:1.3; color:var(--green-dark); }
+  .side-promo .leaf-deco{ position:absolute; right:-10px; bottom:-10px; font-size:44px; opacity:0.35; }
+
+  .side-emergency{
+    background:rgba(224,85,61,0.08);
+    border:1px solid rgba(224,85,61,0.18);
+  }
+  .side-emergency:hover{ background:rgba(224,85,61,0.13); }
+  .side-emergency b{ color:#B7402A; }
+  .emergency-top{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .emergency-top svg{ stroke:#D9503A; fill:none; }
+  .plus-badge{
+    width:20px; height:20px; border-radius:6px; background:#D9503A; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; line-height:1;
+  }
+  .emergency-sub{ display:block; font-size:11px; color:#B7402A; opacity:0.85; margin-top:6px; }
+
+  /* ===================== TOPBAR ===================== */
+  .main{ flex:1; min-width:0; }
+  .topbar{
+    display:flex; align-items:center; gap:20px; background:var(--white);
+    border-bottom:1px solid var(--mint-border); padding:14px 30px; position:sticky; top:0; z-index:10;
+  }
+  .search-box{
+    flex:1; max-width:520px; display:flex; align-items:center; gap:10px;
+    background:var(--mint-soft); border:1.4px solid var(--mint-border); border-radius:12px;
+    padding:10px 16px; font-size:13.5px; color:var(--muted);
+  }
+  .search-box input{ border:none; background:transparent; outline:none; width:100%; font-size:13.5px; color:var(--ink); }
+  .topbar-right{ margin-left:auto; display:flex; align-items:center; gap:20px; }
+  .bell{ position:relative; cursor:pointer; color:var(--ink); width:38px; height:38px; border-radius:10px; background:var(--mint-soft); border:1.4px solid var(--mint-border); display:flex; align-items:center; justify-content:center; transition:background .15s ease, transform .15s ease; }
+  .bell:hover{ background:var(--mint); transform:translateY(-2px); }
+  .bell svg{ width:18px; height:18px; }
+  .bell .dot{ position:absolute; top:-3px; right:-3px; width:9px; height:9px; border-radius:50%; background:#E0553D; border:1.5px solid #fff; }
+  .user-chip{ display:flex; align-items:center; gap:10px; cursor:pointer; }
+  .avatar{ width:36px; height:36px; border-radius:50%; background:var(--green-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+  .user-name{ font-size:13px; font-weight:700; }
+  .user-role{ font-size:10.5px; color:var(--muted); }
+
+  /* ===================== CONTENT ===================== */
+  .content{ padding:26px 30px 60px; }
+
+  .banner{
+    background:linear-gradient(120deg, var(--mint), #DFF3E7);
+    border-radius:20px; padding:26px 30px; display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:22px; position:relative; overflow:hidden; border:1px solid var(--mint-border);
+  }
+  .banner h2{ font-family:'Manrope',sans-serif; font-weight:800; font-size:21px; margin:0 0 4px; }
+  .banner p{ font-size:13px; color:var(--muted); margin:0; }
+  .banner-appt{
+    background:var(--white); border-radius:14px; padding:12px 20px; display:flex; align-items:center; gap:14px;
+    box-shadow:0 10px 24px -14px rgba(18,59,44,0.2);
+  }
+  .banner-appt .txt b{ display:block; font-size:12.5px; }
+  .banner-appt .txt span{ font-size:11px; color:var(--muted); }
+
+  .quick-actions{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+  .qa-card{
+    background:var(--white); border:1.4px solid var(--mint-border); border-radius:16px; padding:16px 18px;
+    display:flex; align-items:center; gap:14px; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .qa-card:hover{ transform:translateY(-4px); box-shadow:0 16px 28px -16px rgba(18,59,44,0.2); border-color:var(--green-primary); }
+  .qa-icon{ width:42px; height:42px; border-radius:12px; background:var(--mint); display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0; }
+  .qa-card b{ display:block; font-size:13px; }
+  .qa-card span{ font-size:11px; color:var(--muted); }
+  .qa-arrow{ margin-left:auto; color:var(--muted); }
+
+  .grid-2{ display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px; }
+  .panel{
+    background:var(--white); border:1.4px solid var(--mint-border); border-radius:18px; padding:22px;
+  }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .panel-head h3{ font-size:15px; margin:0 0 2px; font-family:'Manrope',sans-serif; font-weight:700; }
+  .panel-head p{ font-size:11.5px; color:var(--muted); margin:0; }
+  .panel-link{ font-size:12px; font-weight:700; color:var(--green-primary); cursor:pointer; }
+
+  .sub-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .sub-card{ background:var(--mint-soft); border:1.4px solid var(--mint-border); border-radius:14px; padding:14px; }
+  .sub-card b{ font-size:12.5px; display:block; margin-bottom:8px; }
+  .sub-card ul{ margin:0; padding-left:16px; font-size:11.5px; color:var(--muted); line-height:1.6; }
+  .sub-btn{
+    margin-top:8px; width:100%; background:var(--white); border:1.4px solid var(--mint-border);
+    border-radius:9px; padding:7px; font-size:11.5px; font-weight:700; color:var(--green-dark); cursor:pointer;
+    transition:background .15s ease;
+  }
+  .sub-btn:hover{ background:var(--mint); }
+  .sub-btn.solid{ background:var(--green-primary); color:#fff; border-color:var(--green-primary); }
+  .sub-btn.solid:hover{ background:var(--green-dark); }
+  .tag-pill{ display:inline-block; background:var(--mint); color:var(--green-dark); font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; margin-top:6px; }
+
+  .ai-card{ background:linear-gradient(160deg, var(--mint), var(--mint-soft)); border:1.4px solid var(--mint-border); }
+  .ai-card h3{ display:flex; align-items:center; gap:8px; }
+  .ai-input-wrap{ background:var(--white); border:1.4px solid var(--mint-border); border-radius:12px; padding:12px 14px; display:flex; align-items:center; gap:10px; margin:14px 0 10px; }
+  .ai-input-wrap input{ border:none; outline:none; background:transparent; width:100%; font-size:12.5px; }
+  .mic-btn{ width:28px; height:28px; border-radius:50%; background:var(--mint); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+
+  .visit-row{ display:flex; gap:14px; padding:12px 0; border-bottom:1px solid var(--mint-border); }
+  .visit-row:last-child{ border-bottom:none; }
+  .visit-date{ width:52px; text-align:center; flex-shrink:0; }
+  .visit-date b{ display:block; font-size:16px; color:var(--green-primary); font-family:'Manrope',sans-serif; }
+  .visit-date span{ font-size:10px; color:var(--muted); }
+  .visit-info{ flex:1; }
+  .visit-info b{ font-size:13px; display:block; }
+  .visit-info .doc-tag{ font-size:11px; color:var(--green-primary); font-weight:600; }
+  .visit-info .reason{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .status-pill{ font-size:10.5px; font-weight:700; background:var(--mint); color:var(--green-dark); padding:4px 10px; border-radius:20px; height:fit-content; }
+
+  .report-row{ display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--mint-border); }
+  .report-row:last-child{ border-bottom:none; }
+  .report-icon{ width:34px; height:34px; border-radius:9px; background:var(--mint); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .report-row b{ font-size:12.5px; display:block; }
+  .report-row span{ font-size:10.5px; color:var(--muted); }
+  .dl-btn{ margin-left:auto; width:30px; height:30px; border-radius:50%; background:var(--mint-soft); border:1.4px solid var(--mint-border); display:flex; align-items:center; justify-content:center; cursor:pointer; }
+
+  .readiness-card{ text-align:center; }
+  .ring-wrap{ position:relative; width:110px; height:110px; margin:6px auto 14px; }
+  .ring-wrap svg{ transform:rotate(-90deg); width:110px; height:110px; }
+  .ring-pct{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Manrope',sans-serif; font-weight:800; font-size:22px; color:var(--green-primary); }
+  .checklist{ text-align:left; margin:12px 0; }
+  .check-item{ display:flex; align-items:center; gap:8px; font-size:12px; padding:5px 0; }
+  .check-item.warn{ color:var(--warn); }
+  .check-item .cmark{ width:16px; }
+
+  .wellness-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:16px; }
+  .well-card{ background:var(--white); border:1.4px solid var(--mint-border); border-radius:16px; padding:16px; transition:transform .18s ease; cursor:pointer; }
+  .well-card:hover{ transform:translateY(-4px); }
+  .well-card .icon{ font-size:20px; margin-bottom:8px; }
+  .well-card b{ font-size:12.5px; display:block; margin-bottom:4px; }
+  .well-card p{ font-size:11px; color:var(--muted); margin:0 0 8px; line-height:1.5; }
+  .well-card .link{ font-size:11px; font-weight:700; color:var(--green-primary); }
+
+  .footer-bar{
+    margin-top:22px; background:var(--mint); border-radius:16px; padding:14px 24px;
+    display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--green-dark); font-weight:600;
+  }
+
+  .banner-tags{ font-size:11px; color:var(--green-dark); opacity:0.75; margin-top:10px; font-weight:600; }
+
+  .home-layout{ display:grid; grid-template-columns:2.35fr 1fr; gap:16px; align-items:start; }
+  .home-rail{ display:flex; flex-direction:column; gap:16px; position:sticky; top:86px; }
+  @media (max-width:1180px){ .home-layout{ grid-template-columns:1fr; } .home-rail{ position:static; } }
+
+  .pill-ai{ font-size:10px; font-weight:700; background:var(--mint); color:var(--green-primary); padding:3px 9px; border-radius:20px; }
+
+  .ai-precard{ border-color:var(--mint-border); }
+  .precon-options{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:16px 0 14px; }
+  .precon-opt{
+    border-radius:14px; padding:16px 14px; cursor:pointer; display:flex; flex-direction:column; gap:8px;
+    position:relative; transition:transform .18s ease, box-shadow .18s ease; border:1.4px solid transparent;
+  }
+  .precon-opt:hover{ transform:translateY(-4px); box-shadow:0 14px 26px -16px rgba(18,59,44,0.22); }
+  .precon-ic{ width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,0.6); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .precon-opt b{ font-size:13px; display:block; }
+  .precon-opt span{ font-size:11px; opacity:0.8; }
+  .precon-arrow{ position:absolute; top:14px; right:14px; font-size:13px; opacity:0.6; }
+  .opt-green{ background:var(--mint); border-color:var(--mint-border); color:var(--green-dark); }
+  .opt-blue{ background:var(--sky); border-color:var(--sky-border); color:var(--sky-blue-dark); }
+  .opt-purple{ background:#F4ECFB; border-color:#E5D3F5; color:#6E3F96; }
+  .precon-footer{ display:flex; align-items:center; justify-content:space-between; }
+  .btn-start-ai{
+    background:var(--green-primary); color:#fff; border:none; border-radius:12px; padding:12px 22px;
+    font-size:13.5px; font-weight:700; cursor:pointer; transition:background .15s ease, transform .18s ease;
+  }
+  .btn-start-ai:hover{ background:var(--green-dark); transform:translateY(-2px); }
+  .precon-time{ font-size:11.5px; color:var(--muted); }
+
+  .qa-five{ grid-template-columns:repeat(5,1fr); }
+  .qa-red{ color:#D9503A !important; font-weight:700; }
+
+  .whats-new-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px; }
+  .wn-chip{ background:var(--mint-soft); border:1.4px solid var(--mint-border); border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:2px; }
+  .wn-chip b{ font-size:12px; }
+  .wn-chip span{ font-size:10.5px; color:var(--muted); }
+  .wn-tag{ font-size:9.5px; font-weight:800; padding:2px 8px; border-radius:20px; width:fit-content; margin-bottom:4px; }
+  .tag-new{ background:#FCE9E5; color:#C0432E; }
+  .tag-cont{ background:var(--mint); color:var(--green-primary); }
+  .tag-upd{ background:var(--sky); color:var(--sky-blue); }
+  .tag-doc{ background:#F4ECFB; color:#7B4FA0; }
+
+  .missing-banner{
+    display:flex; align-items:center; gap:10px; background:var(--mint); border-radius:12px; padding:12px 14px;
+    cursor:pointer; transition:background .15s ease;
+  }
+  .missing-banner:hover{ background:#DFF3E7; }
+  .missing-banner b{ font-size:12px; display:block; }
+  .missing-banner span:last-child{ margin-left:auto; color:var(--green-primary); }
+  .missing-banner > div span{ font-size:10.5px; color:var(--muted); }
+
+  .trend-tabs{ display:flex; gap:6px; margin:2px 0 14px; }
+  .trend-tab{
+    font-size:11px; font-weight:700; padding:6px 12px; border-radius:20px; cursor:pointer;
+    color:var(--muted); background:var(--mint-soft); border:1.4px solid var(--mint-border); transition:all .15s ease;
+  }
+  .trend-tab.active{ background:var(--green-primary); color:#fff; border-color:var(--green-primary); }
+  .trend-current{
+    flex-shrink:0; background:var(--mint-soft); border:1.4px solid var(--mint-border); border-radius:12px;
+    padding:10px 14px; text-align:center; min-width:64px;
+  }
+  .trend-current span{ display:block; font-family:'Manrope',sans-serif; font-weight:800; font-size:19px; color:var(--green-primary); }
+  .trend-current b{ font-size:10.5px; color:var(--muted); font-weight:600; }
+  .trend-cur-label{ display:block; font-size:9px !important; color:var(--muted); margin-top:2px; }
+  .trend-dates{ display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:4px; padding:0 4px; }
+
+  .reminder-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--mint-border); }
+  .reminder-row:last-child{ border-bottom:none; }
+  .reminder-ic{ width:32px; height:32px; border-radius:9px; background:var(--mint-soft); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .reminder-row b{ font-size:12px; display:block; }
+  .reminder-row span:not(.reminder-ring){ font-size:10.5px; color:var(--muted); }
+  .reminder-check{ margin-left:auto; width:20px; height:20px; border-radius:50%; background:var(--green-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; }
+  .reminder-ring{ margin-left:auto; width:18px; height:18px; border-radius:50%; border:2px solid var(--mint-border); }
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translate(-50%,14px);
+    background:var(--ink); color:#fff; font-size:13px; font-weight:500;
+    padding:12px 22px; border-radius:12px; opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; z-index:999;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  @media (max-width:1180px){
+    .grid-2{ grid-template-columns:1fr; }
+    .quick-actions{ grid-template-columns:repeat(2,1fr); }
+    .sub-grid{ grid-template-columns:repeat(2,1fr); }
+    .wellness-grid{ grid-template-columns:repeat(2,1fr); }
+    .health-quick-row{ grid-template-columns:1fr; }
+  }
+  @media (max-width:820px){
+    .sidebar{ display:none; }
+  }
+
+  /* ===================== MY HEALTH PAGE ===================== */
+  .page{ display:block; }
+
+  .health-summary-banner{
+    background:linear-gradient(120deg, var(--sky), #DCEBF8);
+    border:1px solid var(--sky-border);
+    border-radius:20px; padding:26px 30px; margin-bottom:22px;
+  }
+  .health-summary-banner h2{ font-family:'Manrope',sans-serif; font-weight:800; font-size:20px; margin:0 0 8px; color:var(--sky-blue-dark); }
+  .health-summary-banner p{ font-size:13.5px; color:#3E6480; margin:0; line-height:1.6; max-width:720px; }
+
+  .health-quick-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:22px; }
+  .hq-card{
+    background:var(--white); border:1.4px solid var(--sky-border); border-radius:16px; padding:16px 18px;
+    display:flex; align-items:center; gap:14px; transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .hq-card:hover{ transform:translateY(-3px); box-shadow:0 14px 26px -16px rgba(46,111,163,0.25); }
+  .hq-icon{ width:42px; height:42px; border-radius:12px; background:var(--sky); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .hq-card b{ display:block; font-size:12.5px; }
+  .hq-card span{ font-size:11px; color:var(--muted); }
+
+  .health-panel{ border-color:var(--sky-border); }
+  .health-panel .panel-head h3{ color:var(--sky-blue-dark); }
+
+  .bar-compare{ display:flex; flex-direction:column; gap:16px; margin-top:6px; }
+  .bar-row{ display:grid; grid-template-columns:90px 1fr 46px; align-items:center; gap:10px; font-size:12px; }
+  .bar-track{ height:9px; border-radius:6px; background:var(--sky); overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:6px; background:var(--sky-blue); }
+  .bar-fill.down{ background:#5FAE7A; }
+  .bar-row b{ color:var(--sky-blue); font-weight:700; text-align:right; }
+  .bar-row b.down{ color:#3B8A5A; }
+
+  .refresh-btn{
+    width:32px; height:32px; border-radius:50%; background:var(--sky); border:1.4px solid var(--sky-border);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .15s ease;
+    flex-shrink:0;
+  }
+  .refresh-btn:hover{ background:#DCEBF8; }
+  .refresh-btn svg{ width:16px; height:16px; }
+  .refresh-btn.spinning svg{ animation:spin .8s linear; }
+  @keyframes spin{ from{transform:rotate(0);} to{transform:rotate(360deg);} }
+
+  .whats-new-list{ list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; }
+  .whats-new-list li{ font-size:12.5px; background:var(--sky-soft); border:1px solid var(--sky-border); border-radius:10px; padding:9px 12px; }
+
+  .status-pill.sky{ background:var(--sky); color:var(--sky-blue-dark); }
+  .sub-btn.sky{ background:var(--sky-blue); border-color:var(--sky-blue); }
+  .sub-btn.sky:hover{ background:var(--sky-blue-dark); }
+
+  .upcoming-empty{ text-align:center; padding:20px 10px; }
+  .upcoming-empty p{ font-size:12.5px; color:var(--muted); margin:8px 0 14px; }
+
+  /* ===================== MY HEALTH — professional upgrade ===================== */
+  .health-summary-banner{ display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .health-score-ring-wrap{ display:flex; align-items:center; gap:14px; background:rgba(255,255,255,0.6); border:1px solid var(--sky-border); border-radius:16px; padding:12px 18px; flex-shrink:0; }
+  .health-ring{ width:72px; height:72px; margin:0; }
+  .health-ring svg{ width:72px; height:72px; }
+  .health-ring .ring-pct{ font-size:16px; }
+  .health-ring-label{ text-align:left; }
+  .health-ring-label b{ display:block; font-size:12.5px; color:var(--sky-blue-dark); font-family:'Manrope',sans-serif; }
+  .health-ring-label span{ font-size:11px; color:#1F8B4C; font-weight:700; }
+
+  .section-label{ font-size:12.5px; font-weight:700; color:var(--sky-blue-dark); font-family:'Manrope',sans-serif; margin:0 0 12px; display:flex; align-items:center; gap:6px; }
+
+  .metrics-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:20px; }
+  .metric-card{ background:var(--white); border:1.4px solid var(--sky-border); border-radius:16px; padding:14px 15px; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .metric-card:hover{ transform:translateY(-3px); box-shadow:0 14px 26px -16px rgba(46,111,163,0.28); border-color:var(--sky-blue); }
+  .metric-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+  .metric-ic{ width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .metric-ic svg{ width:17px; height:17px; }
+  .metric-ic.ic-blue{ background:linear-gradient(145deg,#EAF3FB,#DCEBF8); color:var(--sky-blue); }
+  .metric-ic.ic-red{ background:linear-gradient(145deg,#FDECEA,#FBDCD8); color:#D9503A; }
+  .metric-ic.ic-amber{ background:linear-gradient(145deg,#FDF3E3,#FAE7C6); color:#B4790E; }
+  .metric-ic.ic-pink{ background:linear-gradient(145deg,#FDEAF1,#FAD7E6); color:#C23D74; }
+  .metric-ic.ic-purple{ background:linear-gradient(145deg,#F4ECFB,#E7D6F5); color:#6E3F96; }
+  .metric-ic.ic-green{ background:linear-gradient(145deg,var(--mint),#DFF3E7); color:var(--green-primary); }
+  .metric-delta{ font-size:10px; font-weight:800; padding:2px 7px; border-radius:20px; white-space:nowrap; }
+  .metric-delta.good{ background:#E3F5EA; color:#1F8B4C; }
+  .metric-delta.bad{ background:#FDECE8; color:#C0432E; }
+  .metric-name{ font-size:10.5px; color:var(--muted); margin:0 0 3px; }
+  .metric-value{ font-family:'Manrope',sans-serif; font-weight:800; font-size:18px; color:var(--sky-blue-dark); }
+  .metric-value span{ font-size:10.5px; font-weight:600; color:var(--muted); margin-left:2px; }
+  .metric-spark{ width:100%; height:30px; margin-top:8px; display:block; overflow:visible; }
+
+  .trend-hero{ border-color:var(--sky-border); margin-bottom:16px; }
+  .trend-hero-head{ display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-bottom:4px; }
+  .trend-hero-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .trend-hero-tabs .trend-tab.active{ background:var(--sky-blue); border-color:var(--sky-blue); }
+  .trend-hero-stat{ text-align:right; flex-shrink:0; }
+  .trend-hero-stat .val{ font-family:'Manrope',sans-serif; font-weight:800; font-size:27px; color:var(--sky-blue-dark); }
+  .trend-hero-stat .val span{ font-size:12px; font-weight:600; color:var(--muted); margin-left:3px; }
+  .trend-hero-stat .delta{ font-size:11.5px; font-weight:700; margin-top:3px; }
+  .trend-hero-stat .delta.good{ color:#1F8B4C; }
+  .trend-hero-stat .delta.bad{ color:#C0432E; }
+  .trend-hero-chart{ position:relative; margin-top:12px; }
+  .trend-hero-chart svg{ width:100%; height:260px; display:block; }
+  .trend-hero-labels{ display:flex; justify-content:space-between; font-size:10.5px; color:var(--muted); padding:0 6px; margin-top:2px; }
+  .trend-axis-label{ font-size:10px; fill:var(--muted); font-family:'Inter',sans-serif; }
+
+  .wellness-chart-wrap{ position:relative; }
+  .wellness-chart-wrap svg{ width:100%; height:190px; display:block; }
+  .wellness-current-badge{ position:absolute; top:-2px; right:0; background:var(--green-primary); color:#fff; font-size:11px; font-weight:800; padding:4px 11px; border-radius:20px; font-family:'Manrope',sans-serif; }
+
+  .bar-compare-v2 .bar-row{ grid-template-columns:118px 1fr 52px; }
+  .bar-row .bar-label{ display:flex; align-items:center; gap:8px; font-weight:600; }
+  .bar-row .bar-label .ic{ width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .bar-row .bar-label .ic svg{ width:13px; height:13px; }
+  .bar-row .bar-label .ic.ic-purple{ background:#F4ECFB; color:#6E3F96; }
+  .bar-row .bar-label .ic.ic-amber{ background:#FDF3E3; color:#B4790E; }
+  .bar-row .bar-label .ic.ic-blue{ background:var(--sky); color:var(--sky-blue); }
+  .bar-row .bar-label .ic.ic-red{ background:#FDECEA; color:#D9503A; }
+  .bar-fill-grad{ background:linear-gradient(90deg,#8FBEE0,var(--sky-blue)); box-shadow:0 2px 6px -1px rgba(46,111,163,0.35); }
+  .bar-fill-grad.down{ background:linear-gradient(90deg,#9AD9AF,#3B8A5A); box-shadow:0 2px 6px -1px rgba(14,124,74,0.3); }
+  .delta-arrow{ font-size:9px; margin-right:2px; }
+
+  /* ---- Chart polish ---- */
+  .trend-hero-chart svg, .wellness-chart-wrap svg{ overflow:visible; }
+  .chart-glow{ filter:drop-shadow(0 4px 8px rgba(46,111,163,0.18)); }
+  .chart-glow-green{ filter:drop-shadow(0 4px 8px rgba(14,124,74,0.18)); }
+  .grid-dash{ stroke-dasharray:4,5; }
+  #heroDots circle, #wellDots circle{ filter:drop-shadow(0 1px 2px rgba(0,0,0,0.15)); }
+
+  @media (max-width:1180px){ .metrics-grid{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:640px){ .metrics-grid{ grid-template-columns:repeat(2,1fr); } .health-summary-banner{ flex-direction:column; align-items:flex-start; } }
+
+  /* ---- Body Measurements ---- */
+  .measure-layout{ display:grid; grid-template-columns:1.4fr 1fr; gap:30px; align-items:center; }
+  .measure-form{ display:flex; flex-direction:column; gap:14px; }
+  .measure-fields-row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .measure-field{ display:flex; flex-direction:column; gap:6px; }
+  .measure-field label{ font-size:11.5px; font-weight:700; color:var(--sky-blue-dark); }
+  .measure-field input{
+    border:1.4px solid var(--sky-border); border-radius:10px; padding:10px 14px; font-size:14px;
+    font-family:'Inter',sans-serif; color:var(--ink); background:var(--sky-soft); outline:none;
+    transition:border-color .15s ease, background .15s ease; width:100%;
+  }
+  .measure-field input:focus{ border-color:var(--sky-blue); background:#fff; }
+  .bmi-result{ margin-top:4px; background:var(--sky-soft); border:1.4px solid var(--sky-border); border-radius:14px; padding:16px 18px; }
+  .bmi-value-wrap{ display:flex; align-items:baseline; gap:10px; margin-bottom:5px; }
+  .bmi-value{ font-family:'Manrope',sans-serif; font-weight:800; font-size:27px; color:var(--sky-blue-dark); }
+  .bmi-tag{ font-size:10.5px; font-weight:800; padding:3px 10px; border-radius:20px; }
+  .bmi-tag.under{ background:#FDF3E3; color:#B4790E; }
+  .bmi-tag.normal{ background:#E3F5EA; color:#1F8B4C; }
+  .bmi-tag.over{ background:#FDF3E3; color:#B4790E; }
+  .bmi-tag.obese{ background:#FDECE8; color:#C0432E; }
+  .bmi-note{ font-size:11px; color:var(--muted); margin:0 0 14px; }
+  .bmi-scale-bar{ position:relative; height:8px; border-radius:6px; display:flex; }
+  .bmi-scale-bar .seg{ height:100%; }
+  .bmi-scale-bar .seg.under{ width:22%; background:#F3C878; border-radius:6px 0 0 6px; }
+  .bmi-scale-bar .seg.normal{ width:28%; background:#6FC28C; }
+  .bmi-scale-bar .seg.over{ width:25%; background:#F3C878; }
+  .bmi-scale-bar .seg.obese{ width:25%; background:#E38070; border-radius:0 6px 6px 0; }
+  .bmi-marker{ position:absolute; top:-4px; width:3px; height:16px; background:var(--ink); border-radius:2px; transform:translateX(-50%); transition:left .2s ease; }
+  .bmi-scale-labels{ display:flex; justify-content:space-between; font-size:9.5px; color:var(--muted); margin-top:6px; }
+  .measure-figure{ text-align:center; }
+  .measure-figure svg{ width:100%; max-width:190px; height:auto; margin:0 auto; display:block; overflow:visible; }
+  .measure-figure-caption{ font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.5; }
+  @media (max-width:900px){ .measure-layout{ grid-template-columns:1fr; } .measure-figure{ order:-1; max-width:180px; margin:0 auto; } }
+
+  /* ---- Field label + unit toggle ---- */
+  .field-label-row{ display:flex; align-items:center; justify-content:space-between; }
+  .unit-toggle{ display:flex; background:var(--sky); border-radius:8px; padding:2px; gap:2px; }
+  .unit-btn{ border:none; background:transparent; font-size:9.5px; font-weight:800; color:var(--sky-blue-dark); padding:3px 8px; border-radius:6px; cursor:pointer; opacity:0.55; transition:background .15s ease, opacity .15s ease; font-family:'Inter',sans-serif; }
+  .unit-btn.active{ background:var(--sky-blue); color:#fff; opacity:1; }
+  .measure-field select{
+    border:1.4px solid var(--sky-border); border-radius:10px; padding:10px 14px; font-size:13px;
+    font-family:'Inter',sans-serif; color:var(--ink); background:var(--sky-soft); outline:none; width:100%; cursor:pointer;
+  }
+  .measure-field select:focus{ border-color:var(--sky-blue); background:#fff; }
+  .ft-in-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .ft-in-row input{ width:100%; }
+  .gender-toggle{ display:flex; gap:8px; }
+  .gender-btn{
+    flex:1; border:1.4px solid var(--sky-border); background:var(--sky-soft); border-radius:10px; padding:9px 6px;
+    font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+    transition:background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .gender-btn svg{ width:14px; height:14px; }
+  .gender-btn.active{ background:var(--sky-blue); border-color:var(--sky-blue); color:#fff; }
+  .bmi-age-note{ font-size:10.5px; color:var(--sky-blue-dark); background:var(--sky); border-radius:8px; padding:8px 10px; margin-top:10px; line-height:1.5; display:none; }
+  .bmi-age-note.show{ display:block; }
+
+  /* ---- Body dummy figure ---- */
+  .measure-figure svg #bodyScaleWrap{ transition:transform .35s cubic-bezier(.34,1.4,.64,1); }
+  .measure-figure-stats{ display:flex; justify-content:center; gap:14px; margin-top:8px; font-size:10px; color:var(--sky-blue-dark); font-weight:700; }
+  .measure-figure-stats span{ background:var(--sky); padding:3px 9px; border-radius:20px; }
+
+  /* ---- Current Treatments ---- */
+  .treatment-list{ display:flex; flex-direction:column; gap:14px; }
+  .treatment-card{ background:var(--sky-soft); border:1.4px solid var(--sky-border); border-radius:16px; padding:16px 18px; transition:box-shadow .18s ease, border-color .18s ease; }
+  .treatment-card:hover{ box-shadow:0 12px 24px -16px rgba(46,111,163,0.28); border-color:var(--sky-blue); }
+  .treatment-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .treatment-info{ display:flex; align-items:flex-start; gap:12px; }
+  .treatment-ic{ width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .treatment-ic svg{ width:18px; height:18px; }
+  .treatment-name{ font-size:13.5px; font-weight:700; margin:0 0 2px; }
+  .treatment-meta{ font-size:11px; color:var(--muted); margin:0; }
+  .treatment-status{ font-size:10.5px; font-weight:800; padding:4px 11px; border-radius:20px; white-space:nowrap; flex-shrink:0; }
+  .treatment-status.ontrack{ background:#E3F5EA; color:#1F8B4C; }
+  .treatment-status.attention{ background:#FDF3E3; color:#B4790E; }
+  .treatment-status.done{ background:var(--sky); color:var(--sky-blue-dark); }
+  .treatment-progress-row{ display:flex; align-items:center; gap:12px; }
+  .treatment-progress-track{ flex:1; height:9px; background:#E3ECF5; border-radius:20px; overflow:hidden; }
+  .treatment-progress-fill{ height:100%; border-radius:20px; background:linear-gradient(90deg,#8FBEE0,var(--sky-blue)); transition:width .4s ease; }
+  .treatment-progress-fill.amber{ background:linear-gradient(90deg,#F3C878,#D98A1B); }
+  .treatment-progress-pct{ font-size:12px; font-weight:800; color:var(--sky-blue-dark); width:38px; text-align:right; flex-shrink:0; }
+  .treatment-footer{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; font-size:11px; color:var(--muted); flex-wrap:wrap; gap:8px; }
+  .treatment-next{ font-weight:700; color:var(--sky-blue-dark); }
+  .treatment-adherence{ display:flex; gap:3px; }
+  .treatment-adherence span{ width:6px; height:6px; border-radius:50%; background:#CFE1F0; }
+  .treatment-adherence span.filled{ background:var(--sky-blue); }
+
+  /* ===================== SHARED: page banners, sub-tabs, tab panels ===================== */
+  .page-banner{
+    border-radius:20px; padding:26px 30px; margin-bottom:22px; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;
+  }
+  .page-banner.mint{ background:linear-gradient(120deg, var(--mint), #DFF3E7); border:1px solid var(--mint-border); }
+  .page-banner.sky{ background:linear-gradient(120deg, var(--sky), #DCEBF8); border:1px solid var(--sky-border); }
+  .page-banner.purple{ background:linear-gradient(120deg,#F4ECFB,#E9D9F6); border:1px solid #E5D3F5; }
+  .page-banner h2{ font-family:'Manrope',sans-serif; font-weight:800; font-size:21px; margin:0 0 4px; }
+  .page-banner p{ font-size:13px; color:var(--muted); margin:0; max-width:640px; line-height:1.55; }
+  .page-banner.sky h2{ color:var(--sky-blue-dark); }
+  .page-banner.purple h2{ color:#5A3480; }
+  .page-stat-chip{
+    background:rgba(255,255,255,0.7); border-radius:14px; padding:12px 18px; text-align:center; flex-shrink:0;
+    box-shadow:0 10px 24px -16px rgba(18,59,44,0.2); min-width:88px;
+  }
+  .page-stat-chip b{ display:block; font-family:'Manrope',sans-serif; font-weight:800; font-size:20px; }
+  .page-stat-chip span{ font-size:10px; color:var(--muted); font-weight:600; }
+
+  .sub-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+  .sub-tab{
+    display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; padding:9px 16px; border-radius:20px;
+    cursor:pointer; color:var(--muted); background:var(--white); border:1.4px solid var(--mint-border); transition:all .15s ease;
+  }
+  .sub-tab .num{ width:18px; height:18px; border-radius:50%; background:var(--mint-soft); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; flex-shrink:0; }
+  .sub-tab.active{ background:var(--green-primary); color:#fff; border-color:var(--green-primary); }
+  .sub-tab.active .num{ background:rgba(255,255,255,0.25); color:#fff; }
+  .sub-tab.done .num{ background:var(--green-primary); color:#fff; }
+  .sub-tab.sky.active{ background:var(--sky-blue); border-color:var(--sky-blue); }
+  .sub-tab.sky.done .num{ background:var(--sky-blue); color:#fff; }
+
+  .tab-panel{ display:none; }
+  .tab-panel.show{ display:block; animation:fadeIn .25s ease; }
+  @keyframes fadeIn{ from{ opacity:0; transform:translateY(4px);} to{ opacity:1; transform:translateY(0);} }
+
+  /* ===================== CHIP SELECT (AI Case Taking) ===================== */
+  .chip-select{ display:flex; flex-wrap:wrap; gap:9px; margin:14px 0; }
+  .sel-chip{
+    font-size:12px; font-weight:700; padding:8px 15px; border-radius:20px; cursor:pointer;
+    background:var(--mint-soft); border:1.4px solid var(--mint-border); color:var(--ink); transition:all .15s ease; user-select:none;
+  }
+  .sel-chip:hover{ border-color:var(--green-light); }
+  .sel-chip.on{ background:var(--green-primary); color:#fff; border-color:var(--green-primary); }
+  .sev-row{ display:flex; align-items:center; gap:14px; margin:18px 0 6px; }
+  .sev-row input[type=range]{ flex:1; accent-color:var(--green-primary); height:6px; }
+  .sev-badge{ font-size:11.5px; font-weight:800; padding:5px 12px; border-radius:20px; background:var(--mint); color:var(--green-dark); min-width:76px; text-align:center; }
+  .sev-badge.mod{ background:var(--warn-bg); color:var(--warn); }
+  .sev-badge.high{ background:#FDECE8; color:#C0432E; }
+  .ai-textarea{
+    width:100%; border:1.4px solid var(--mint-border); border-radius:12px; padding:12px 14px; font-size:12.5px;
+    font-family:'Inter',sans-serif; color:var(--ink); background:var(--mint-soft); outline:none; resize:vertical; min-height:80px;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .ai-textarea:focus{ border-color:var(--green-primary); background:#fff; }
+
+  .upload-zone{
+    border:1.6px dashed var(--mint-border); border-radius:14px; padding:28px 16px; text-align:center; cursor:pointer;
+    background:var(--mint-soft); transition:background .15s ease, border-color .15s ease; margin-bottom:14px;
+  }
+  .upload-zone:hover{ background:var(--mint); border-color:var(--green-primary); }
+  .upload-zone .ic{ font-size:26px; margin-bottom:6px; }
+  .upload-zone b{ display:block; font-size:12.5px; }
+  .upload-zone span{ font-size:11px; color:var(--muted); }
+
+  .med-add-row{ display:grid; grid-template-columns:1.6fr 1fr 1fr auto; gap:10px; margin-bottom:16px; }
+  .med-add-row input, .med-add-row select{
+    border:1.4px solid var(--mint-border); border-radius:10px; padding:9px 12px; font-size:12.5px;
+    font-family:'Inter',sans-serif; color:var(--ink); background:var(--mint-soft); outline:none; width:100%;
+  }
+  .med-add-row input:focus, .med-add-row select:focus{ border-color:var(--green-primary); background:#fff; }
+  .med-add-row button{
+    background:var(--green-primary); color:#fff; border:none; border-radius:10px; padding:9px 16px;
+    font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; transition:background .15s ease;
+  }
+  .med-add-row button:hover{ background:var(--green-dark); }
+  .added-chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .added-chip{
+    display:flex; align-items:center; gap:8px; background:var(--mint-soft); border:1.4px solid var(--mint-border);
+    border-radius:20px; padding:6px 8px 6px 13px; font-size:11.5px; font-weight:600;
+  }
+  .added-chip .x{
+    width:17px; height:17px; border-radius:50%; background:var(--mint); color:var(--green-dark); font-size:10px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+  }
+  .added-chip .x:hover{ background:#FDECE8; color:#C0432E; }
+  .empty-hint{ font-size:11.5px; color:var(--muted); padding:10px 2px; }
+
+  .review-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:16px 0; }
+  .review-stat{ background:var(--mint-soft); border:1.4px solid var(--mint-border); border-radius:14px; padding:16px; text-align:center; }
+  .review-stat b{ display:block; font-family:'Manrope',sans-serif; font-weight:800; font-size:22px; color:var(--green-primary); }
+  .review-stat span{ font-size:10.5px; color:var(--muted); font-weight:600; }
+
+  .severity-bars{ display:flex; flex-direction:column; gap:12px; margin-top:6px; }
+  .sbar-row{ display:grid; grid-template-columns:110px 1fr 34px; align-items:center; gap:10px; font-size:12px; }
+  .sbar-track{ height:9px; border-radius:6px; background:var(--mint); overflow:hidden; }
+  .sbar-fill{ height:100%; border-radius:6px; background:linear-gradient(90deg,#6FC28C,var(--green-primary)); }
+
+  /* ===================== REPORTS & DOCUMENTS ===================== */
+  .doc-filter-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .doc-filter{
+    font-size:12px; font-weight:700; padding:8px 15px; border-radius:20px; cursor:pointer;
+    color:var(--sky-blue-dark); background:var(--white); border:1.4px solid var(--sky-border); transition:all .15s ease;
+  }
+  .doc-filter.active{ background:var(--sky-blue); color:#fff; border-color:var(--sky-blue); }
+  .doc-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+  .doc-card{
+    background:var(--white); border:1.4px solid var(--sky-border); border-radius:16px; padding:16px; cursor:pointer;
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .doc-card:hover{ transform:translateY(-3px); box-shadow:0 14px 26px -16px rgba(46,111,163,0.25); border-color:var(--sky-blue); }
+  .doc-card-top{ display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px; }
+  .doc-card-ic{ width:38px; height:38px; border-radius:11px; background:var(--sky); display:flex; align-items:center; justify-content:center; font-size:17px; }
+  .doc-card b{ font-size:12.5px; display:block; margin-bottom:2px; }
+  .doc-card .meta{ font-size:10.5px; color:var(--muted); }
+  .doc-card-foot{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+  .doc-detail{
+    display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--sky-border); font-size:11.5px; color:var(--muted); line-height:1.6;
+  }
+  .doc-detail.show{ display:block; }
+  .doc-card.expanded{ border-color:var(--sky-blue); box-shadow:0 14px 26px -16px rgba(46,111,163,0.3); }
+
+  .donut-wrap{ display:flex; align-items:center; gap:22px; }
+  .donut-legend{ display:flex; flex-direction:column; gap:9px; flex:1; }
+  .donut-legend-row{ display:flex; align-items:center; gap:9px; font-size:12px; }
+  .donut-legend-row .sw{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .donut-legend-row b{ margin-left:auto; }
+
+  /* ===================== MEDICINES ===================== */
+  .med-schedule-row{
+    display:flex; align-items:center; gap:14px; padding:12px 0; border-bottom:1px solid var(--mint-border);
+  }
+  .med-schedule-row:last-child{ border-bottom:none; }
+  .med-time-chip{ width:58px; text-align:center; flex-shrink:0; font-size:11px; font-weight:700; color:var(--green-primary); background:var(--mint); border-radius:10px; padding:6px 4px; }
+  .med-schedule-row .info{ flex:1; }
+  .med-schedule-row .info b{ font-size:12.5px; display:block; }
+  .med-schedule-row .info span{ font-size:10.5px; color:var(--muted); }
+  .med-take-btn{
+    border:1.4px solid var(--mint-border); background:var(--white); color:var(--green-dark); font-size:11px; font-weight:700;
+    padding:7px 14px; border-radius:20px; cursor:pointer; transition:all .15s ease; flex-shrink:0;
+  }
+  .med-take-btn:hover{ background:var(--mint); }
+  .med-take-btn.taken{ background:var(--green-primary); color:#fff; border-color:var(--green-primary); }
+  .med-take-btn.taken::before{ content:'✓ '; }
+
+  .med-card{ background:var(--white); border:1.4px solid var(--mint-border); border-radius:16px; padding:16px; }
+  .med-card-top{ display:flex; align-items:flex-start; gap:12px; margin-bottom:10px; }
+  .med-card-ic{ width:36px; height:36px; border-radius:10px; background:var(--mint); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .med-card b{ font-size:13px; display:block; }
+  .med-card .meta{ font-size:10.5px; color:var(--muted); }
+  .med-stock-track{ height:7px; border-radius:5px; background:var(--mint); overflow:hidden; margin:10px 0 6px; }
+  .med-stock-fill{ height:100%; border-radius:5px; background:var(--green-primary); }
+  .med-stock-fill.low{ background:var(--warn); }
+
+  .week-adherence{ display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-top:6px; }
+  .wa-day{ text-align:center; }
+  .wa-day .lbl{ font-size:10px; color:var(--muted); font-weight:700; margin-bottom:6px; display:block; }
+  .wa-bar-track{ height:70px; border-radius:8px; background:var(--mint-soft); display:flex; align-items:flex-end; overflow:hidden; }
+  .wa-bar-fill{ width:100%; border-radius:8px 8px 0 0; background:linear-gradient(180deg,#6FC28C,var(--green-primary)); transition:height .3s ease; }
+  .wa-bar-fill.missed{ background:linear-gradient(180deg,#F0A898,#D9503A); }
+  .wa-pct{ font-size:10px; font-weight:800; margin-top:5px; display:block; color:var(--green-dark); }
+
+  /* ===================== MESSAGES ===================== */
+  .chat-layout{ display:grid; grid-template-columns:290px 1fr; gap:16px; height:560px; }
+  .conv-list{ background:var(--white); border:1.4px solid var(--mint-border); border-radius:18px; overflow-y:auto; padding:10px; }
+  .conv-item{ display:flex; align-items:center; gap:11px; padding:11px 10px; border-radius:12px; cursor:pointer; transition:background .15s ease; margin-bottom:2px; }
+  .conv-item:hover{ background:var(--mint-soft); }
+  .conv-item.active{ background:var(--mint); }
+  .conv-avatar{ width:38px; height:38px; border-radius:50%; background:var(--green-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0; }
+  .conv-item .txt{ flex:1; min-width:0; }
+  .conv-item .txt b{ font-size:12.5px; display:block; }
+  .conv-item .txt span{ font-size:11px; color:var(--muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conv-meta{ text-align:right; flex-shrink:0; }
+  .conv-meta .t{ font-size:9.5px; color:var(--muted); display:block; margin-bottom:4px; }
+  .conv-unread{ background:#E0553D; color:#fff; font-size:9.5px; font-weight:800; border-radius:20px; padding:1px 6px; display:inline-block; }
+
+  .chat-window{ background:var(--white); border:1.4px solid var(--mint-border); border-radius:18px; display:flex; flex-direction:column; overflow:hidden; }
+  .chat-header{ display:flex; align-items:center; gap:11px; padding:14px 18px; border-bottom:1px solid var(--mint-border); flex-shrink:0; }
+  .chat-header b{ font-size:13px; display:block; }
+  .chat-header span{ font-size:10.5px; color:var(--green-primary); font-weight:600; }
+  .chat-body{ flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .msg-row{ display:flex; }
+  .msg-row.me{ justify-content:flex-end; }
+  .msg-bubble{ max-width:70%; padding:10px 14px; border-radius:16px; font-size:12.5px; line-height:1.5; }
+  .msg-row:not(.me) .msg-bubble{ background:var(--mint-soft); border:1px solid var(--mint-border); border-bottom-left-radius:4px; }
+  .msg-row.me .msg-bubble{ background:var(--green-primary); color:#fff; border-bottom-right-radius:4px; }
+  .msg-time{ font-size:9.5px; color:var(--muted); margin-top:4px; display:block; }
+  .msg-row.me .msg-time{ text-align:right; color:rgba(255,255,255,0.7); }
+  .chat-input-row{ display:flex; gap:10px; padding:14px 16px; border-top:1px solid var(--mint-border); flex-shrink:0; }
+  .chat-input-row input{ flex:1; border:1.4px solid var(--mint-border); border-radius:20px; padding:10px 16px; font-size:12.5px; outline:none; background:var(--mint-soft); }
+  .chat-input-row input:focus{ border-color:var(--green-primary); background:#fff; }
+  .chat-send-btn{ width:40px; height:40px; border-radius:50%; background:var(--green-primary); color:#fff; border:none; cursor:pointer; flex-shrink:0; transition:background .15s ease; }
+  .chat-send-btn:hover{ background:var(--green-dark); }
+
+  /* ===================== SETTINGS ===================== */
+  .settings-layout{ display:grid; grid-template-columns:230px 1fr; gap:18px; align-items:start; }
+  .settings-nav{ display:flex; flex-direction:column; gap:3px; background:var(--white); border:1.4px solid var(--mint-border); border-radius:16px; padding:10px; position:sticky; top:86px; }
+  .settings-nav-item{ display:flex; align-items:center; gap:10px; font-size:12.5px; font-weight:600; padding:10px 12px; border-radius:10px; cursor:pointer; color:var(--ink); transition:background .15s ease, color .15s ease; }
+  .settings-nav-item:hover{ background:var(--mint-soft); }
+  .settings-nav-item.active{ background:var(--green-primary); color:#fff; }
+  @media (max-width:900px){ .settings-layout{ grid-template-columns:1fr; } .settings-nav{ position:static; flex-direction:row; overflow-x:auto; } }
+
+  .field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .field-block{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+  .field-block label{ font-size:11.5px; font-weight:700; color:var(--green-dark); }
+  .field-block input, .field-block select{
+    border:1.4px solid var(--mint-border); border-radius:10px; padding:10px 14px; font-size:13px;
+    font-family:'Inter',sans-serif; color:var(--ink); background:var(--mint-soft); outline:none; width:100%;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .field-block input:focus, .field-block select:focus{ border-color:var(--green-primary); background:#fff; }
+
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--mint-border); gap:16px; }
+  .toggle-row:last-child{ border-bottom:none; }
+  .toggle-row b{ font-size:12.5px; display:block; }
+  .toggle-row span{ font-size:11px; color:var(--muted); }
+  .toggle-switch{ width:42px; height:24px; border-radius:20px; background:#D8E4DD; position:relative; cursor:pointer; flex-shrink:0; transition:background .2s ease; }
+  .toggle-switch::after{ content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s ease; box-shadow:0 1px 3px rgba(0,0,0,0.25); }
+  .toggle-switch.on{ background:var(--green-primary); }
+  .toggle-switch.on::after{ left:21px; }
+
+  .lang-chip-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; }
+  .lang-chip{ padding:10px 18px; border-radius:12px; border:1.4px solid var(--mint-border); background:var(--mint-soft); font-size:12.5px; font-weight:700; cursor:pointer; transition:all .15s ease; }
+  .lang-chip.on{ background:var(--green-primary); color:#fff; border-color:var(--green-primary); }
+
+  .linked-card{ display:flex; align-items:center; gap:14px; background:var(--white); border:1.4px solid var(--mint-border); border-radius:14px; padding:14px 16px; margin-bottom:12px; }
+  .linked-card .ic{ width:40px; height:40px; border-radius:11px; background:var(--mint); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .linked-card b{ font-size:12.5px; display:block; }
+  .linked-card span{ font-size:10.5px; color:var(--muted); }
+  .linked-card .status{ margin-left:auto; }
+  .linked-btn{ border:1.4px solid var(--mint-border); background:var(--white); font-size:11px; font-weight:700; padding:7px 14px; border-radius:20px; cursor:pointer; color:var(--green-dark); }
+  .linked-btn.connected{ background:var(--mint); color:var(--green-primary); border-color:var(--mint-border); }
+  .linked-btn.danger{ color:#C0432E; }
+
+  /* ===================== LOGO INTERACTIVITY ===================== */
+  .side-brand{
+    cursor:pointer; border-radius:16px; margin:0 -6px 14px; transition:background .18s ease, transform .18s ease;
+  }
+  .side-brand:hover{ background:var(--mint-soft); transform:translateY(-1px); }
+  .side-brand:active{ transform:translateY(0) scale(0.97); }
+  .side-brand svg{ overflow:visible; flex-shrink:0; }
+  #logoLeafGroup{ transition:transform .2s ease; }
+  .side-brand:hover #logoLeafGroup{ animation:leafFloatWiggle 1.1s ease-in-out infinite; }
+  @keyframes leafFloatWiggle{
+    0%{ transform:translateY(0) rotate(0deg); }
+    25%{ transform:translateY(-3px) rotate(-6deg); }
+    50%{ transform:translateY(-1px) rotate(0deg); }
+    75%{ transform:translateY(-3px) rotate(6deg); }
+    100%{ transform:translateY(0) rotate(0deg); }
+  }
+  #logoLeafGroup.leaf-flip{ animation:leafFlip .6s ease; }
+  @keyframes leafFlip{
+    0%{ transform:scaleX(1) rotate(0deg); }
+    45%{ transform:scaleX(0.12) rotate(10deg); }
+    55%{ transform:scaleX(0.12) rotate(-6deg); }
+    100%{ transform:scaleX(1) rotate(0deg); }
+  }
+
+  /* ===================== DIET & NUTRITION (Medicines page) ===================== */
+  .diet-chip{ display:inline-flex; align-items:center; gap:6px; }
+  .diet-chip.chip-restrict{ background:#FDECE8; border-color:#F3D3CC; color:#B7402A; }
+  .diet-chip.chip-restrict:hover{ border-color:#E38070; }
+  .diet-chip.chip-restrict.on{ background:#D9503A; color:#fff; border-color:#D9503A; }
+  .diet-note{ font-size:11px; color:var(--muted); margin-top:12px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="side-brand" onclick="playLogoFlip(); navigate('home');" title="Go to Home">
+      <svg viewBox="0 0 150 100" fill="none">
+        <defs><linearGradient id="sideLeaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1FA968"/><stop offset="55%" stop-color="#0E7C4A"/><stop offset="100%" stop-color="#0A5E39"/></linearGradient></defs>
+        <!-- stepping stones, rising from lower-left to upper-right -->
+        <ellipse cx="16" cy="90" rx="12.5" ry="4.2" fill="#B7DEC9"/>
+        <ellipse cx="45" cy="80" rx="14" ry="4.6" fill="#9ED0B4"/>
+        <ellipse cx="78" cy="68" rx="13.5" ry="4.4" fill="#8FC4A6"/>
+        <ellipse cx="112" cy="54" rx="12" ry="4" fill="#CFEBDB"/>
+        <g id="logoLeafGroup" style="transform-box:fill-box; transform-origin:50% 50%;">
+          <path d="M59.4 3.0C85.8 11.0 104.3 29.4 99.0 53.2C95.1 71.7 64.7 78.3 51.5 63.8C38.3 49.2 35.7 16.2 59.4 3.0Z" fill="url(#sideLeaf)"/>
+          <path d="M56.8 9.6C67.4 24.2 70.0 42.6 60.8 59.8" stroke="#0A5E39" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        </g>
+      </svg>
+      <div class="side-brand-text"><b>Swasthya Setu</b><span>Your Health · Our Tradition</span></div>
+    </div>
+
+    <div class="nav-item active" data-page="home" onclick="navigate('home')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 11L12 4L20 11" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10V19C6 19.55 6.45 20 7 20H17C17.55 20 18 19.55 18 19V10" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Home</div>
+    <div class="nav-item" data-page="health" onclick="navigate('health')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 20C12 20 4 14.5 4 9.2C4 6.3 6.2 4 9 4C10.4 4 11.5 4.6 12 5.6C12.5 4.6 13.6 4 15 4C17.8 4 20 6.3 20 9.2C20 14.5 12 20 12 20Z" stroke-width="1.8" stroke-linejoin="round"/></svg></span> My Health</div>
+    <div class="nav-item" data-page="ai" onclick="navigate('ai')"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="2.4" stroke-width="1.8"/><path d="M7 20V16.5C7 14 9 12.5 12 12.5C15 12.5 17 14 17 16.5V20" stroke-width="1.8" stroke-linejoin="round"/><path d="M4.5 12L7 10M19.5 12L17 10" stroke-width="1.6" stroke-linecap="round"/></svg></span> AI Case Taking <span class="nav-badge-new">New</span></div>
+    <div class="nav-item" data-page="reports" onclick="navigate('reports')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M7 3H14L18 7V19C18 19.55 17.55 20 17 20H7C6.45 20 6 19.55 6 19V4C6 3.45 6.45 3 7 3Z" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12H15M9 15.5H15M9 8.5H12" stroke-width="1.6" stroke-linecap="round"/></svg></span> Reports &amp; Documents</div>
+    <div class="nav-item" data-page="medicines" onclick="navigate('medicines')"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4.5" y="9" width="15" height="8.5" rx="4.25" stroke-width="1.8" transform="rotate(-30 12 13.25)"/><path d="M11 10.5L14 15.5" stroke-width="1.6" stroke-linecap="round"/></svg></span> Medicines</div>
+    <div class="nav-item" data-page="messages" onclick="navigate('messages')"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5H20V16H9L5 19.5V16H4V5Z" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9.5H16M8 12.5H13" stroke-width="1.6" stroke-linecap="round"/></svg></span> Messages <span class="nav-badge-count" id="msgNavBadge">2</span></div>
+    <div class="nav-item" data-page="settings" onclick="navigate('settings')"><span class="ic"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 8.4C10 8.4 8.4 10 8.4 12C8.4 14 10 15.6 12 15.6C14 15.6 15.6 14 15.6 12C15.6 10 14 8.4 12 8.4ZM19.9 12.9C19.95 12.6 20 12.3 20 12C20 11.7 19.95 11.4 19.9 11.1L21.7 9.7C21.9 9.55 21.95 9.3 21.8 9.05L20.1 6.1C19.95 5.9 19.7 5.8 19.5 5.9L17.4 6.75C16.95 6.4 16.5 6.1 15.95 5.9L15.65 3.65C15.6 3.4 15.4 3.25 15.15 3.25H8.85C8.6 3.25 8.4 3.4 8.35 3.65L8.05 5.9C7.5 6.1 7.05 6.4 6.6 6.75L4.5 5.9C4.3 5.8 4.05 5.9 3.9 6.1L2.2 9.05C2.05 9.3 2.1 9.55 2.3 9.7L4.1 11.1C4.05 11.4 4 11.7 4 12C4 12.3 4.05 12.6 4.1 12.9L2.3 14.3C2.1 14.45 2.05 14.7 2.2 14.95L3.9 17.9C4.05 18.1 4.3 18.2 4.5 18.1L6.6 17.25C7.05 17.6 7.5 17.9 8.05 18.1L8.35 20.35C8.4 20.6 8.6 20.75 8.85 20.75H15.15C15.4 20.75 15.6 20.6 15.65 20.35L15.95 18.1C16.5 17.9 16.95 17.6 17.4 17.25L19.5 18.1C19.7 18.2 19.95 18.1 20.1 17.9L21.8 14.95C21.95 14.7 21.9 14.45 21.7 14.3L19.9 12.9Z"/></svg></span> Settings</div>
+
+    <div class="side-promo side-emergency" onclick="toast('Connecting you to emergency services…')">
+      <div class="emergency-top">
+        <svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="9" width="12" height="8" rx="1.5" stroke-width="1.8"/><path d="M15 12H18.5L21 15V17H15" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="17.5" r="1.6" stroke-width="1.6"/><circle cx="17" cy="17.5" r="1.6" stroke-width="1.6"/><path d="M7 12.5V15M5.5 13.5H8.5" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span class="plus-badge">+</span>
+      </div>
+      <b>Emergency /<br>Ambulance</b>
+      <span class="emergency-sub">Tap for immediate help</span>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="search-box">🔍 <input placeholder="Search doctors, symptoms, reports…"></div>
+      <div class="topbar-right">
+        <div class="bell" onclick="toast('1 new notification')">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 4C9.5 4 7.8 5.9 7.8 8.5V11.5C7.8 12.5 7.4 13.5 6.7 14.2L6 15H18L17.3 14.2C16.6 13.5 16.2 12.5 16.2 11.5V8.5C16.2 5.9 14.5 4 12 4Z" stroke="#0E7C4A" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M10 17.5C10 18.6 10.9 19.5 12 19.5C13.1 19.5 14 18.6 14 17.5" stroke="#0E7C4A" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span class="dot"></span>
+        </div>
+        <div class="user-chip" onclick="toast('Account menu')">
+          <div class="avatar">RK</div>
+          <div><div class="user-name">Ramesh Kumar</div><div class="user-role">Patient</div></div>
+          <span style="font-size:10px;color:var(--muted);">▾</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+
+    <div id="page-home" class="page">
+      <!-- Greeting banner -->
+      <div class="banner">
+        <div>
+          <h2>Good Morning, Ramesh Kumar! 🌿</h2>
+          <p>Your health matters. Let's prepare your case for the doctor.</p>
+          <div class="banner-tags">AI pre-consultation &nbsp;·&nbsp; Document analysis &nbsp;·&nbsp; Health history &nbsp;·&nbsp; Structured case sheet</div>
+        </div>
+        <div class="banner-appt">
+          <div style="font-size:20px;">📅</div>
+          <div class="txt"><b>Next Appointment</b><span>12 Jun · Dr. Meera Sharma</span></div>
+          <button class="sub-btn solid" style="width:auto;padding:10px 18px;" onclick="pop(this); toast('Opening booking')">Book Appointment</button>
+        </div>
+      </div>
+
+      <div class="home-layout">
+        <div class="home-main">
+
+          <!-- AI Pre-Consultation -->
+          <div class="panel ai-precard">
+            <div class="panel-head">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="qa-icon" style="background:var(--mint);">🩺</div>
+                <div><h3 style="display:flex;align-items:center;gap:8px;">AI Pre-Consultation <span class="pill-ai">✨ Powered by AI</span></h3><p>Tell us about your symptoms, upload reports, or add your medicines. We'll create a structured case for your doctor.</p></div>
+              </div>
+            </div>
+            <div class="precon-options">
+              <div class="precon-opt opt-green" onclick="navigateAiStep('symptoms')"><div class="precon-ic">🎙️</div><div><b>Tell Symptoms</b><span>Speak or type your symptoms</span></div><span class="precon-arrow">→</span></div>
+              <div class="precon-opt opt-blue" onclick="navigateAiStep('reports')"><div class="precon-ic">📄</div><div><b>Upload Reports</b><span>Add your medical reports</span></div><span class="precon-arrow">→</span></div>
+              <div class="precon-opt opt-purple" onclick="navigateAiStep('medicines')"><div class="precon-ic">💊</div><div><b>Add Medicines</b><span>Update your current medicines</span></div><span class="precon-arrow">→</span></div>
+            </div>
+            <div class="precon-footer">
+              <button class="btn-start-ai" onclick="pop(this); navigate('ai');">Start AI Case-Taking →</button>
+              <span class="precon-time">🕐 Takes ~5–10 minutes</span>
+            </div>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="quick-actions qa-five">
+            <div class="qa-card" onclick="toast('Opening booking')"><div class="qa-icon">📅</div><div><b>Book Appointment</b><span>See available slots</span></div></div>
+            <div class="qa-card" onclick="navigate('reports')"><div class="qa-icon">📄</div><div><b>My Reports</b><span>View all reports</span></div></div>
+            <div class="qa-card" onclick="navigate('medicines')"><div class="qa-icon">💊</div><div><b>My Medicines</b><span>Track and update</span></div></div>
+            <div class="qa-card" onclick="navigateAndScroll('health','trendHeroPanel')"><div class="qa-icon">📈</div><div><b>Health Timeline</b><span>See your journey</span></div></div>
+            <div class="qa-card" onclick="navigate('messages')"><div class="qa-icon">💬</div><div><b>Messages</b><span class="qa-red">2 new messages</span></div></div>
+          </div>
+
+          <!-- Upcoming appointment + What's new -->
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h3>📅 Upcoming Appointment</h3><span class="panel-link" onclick="toast('Opening all appointments')">View All →</span></div>
+              <div class="visit-row">
+                <div class="visit-date"><b>12</b><span>Jun 2025</span></div>
+                <div class="visit-info"><b>Dr. Meera Sharma</b><span class="doc-tag">General Physician</span><div class="reason">🕐 10:30 AM · BPIT Health Center</div></div>
+                <div><button class="sub-btn" onclick="toast('Opening appointment details')">View Details</button></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h3>💡 What's New Since Your Last Visit?</h3><span class="panel-link" onclick="navigate('health')">View Full Comparison →</span></div>
+              <div class="whats-new-grid">
+                <div class="wn-chip"><span class="wn-tag tag-new">● New</span><b>General fatigue</b><span>(reported this visit)</span></div>
+                <div class="wn-chip"><span class="wn-tag tag-cont">✓ Continued</span><b>Acidity &amp; poor sleep</b><span>(same as before)</span></div>
+                <div class="wn-chip"><span class="wn-tag tag-upd">↻ Updated</span><b>Current medicines</b><span>(2 medicines)</span></div>
+                <div class="wn-chip"><span class="wn-tag tag-doc">📄 New Document</span><b>Blood test report</b><span>(analyzed)</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent visits + recent reports -->
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head"><h3>🗓️ Recent Visits</h3><span class="panel-link" onclick="showPage('health')">View All →</span></div>
+              <div class="visit-row">
+                <div class="visit-date"><b>28</b><span>Mar 2025</span></div>
+                <div class="visit-info"><b>Dr. Rohan Patel</b><span class="doc-tag">General Physician</span><div class="reason">Reason: General Checkup</div></div>
+                <div><span class="status-pill">Completed</span><button class="sub-btn" style="margin-top:8px;" onclick="toast('Opening visit details')">View Details</button></div>
+              </div>
+              <div class="visit-row">
+                <div class="visit-date"><b>12</b><span>Jan 2025</span></div>
+                <div class="visit-info"><b>Dr. Meera Sharma</b><span class="doc-tag">General Physician</span><div class="reason">Reason: Cold &amp; Fever</div></div>
+                <div><span class="status-pill">Completed</span><button class="sub-btn" style="margin-top:8px;" onclick="toast('Opening visit details')">View Details</button></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h3>📁 Recent Reports</h3><span class="panel-link" onclick="navigate('reports')">View All →</span></div>
+              <div class="report-row"><div class="report-icon">📄</div><div><b>Blood Test Report</b><span>12 Jun 2025 · PDF</span></div><span class="status-pill" style="margin-right:8px;">Analyzed</span><div class="dl-btn" onclick="toast('Downloading…')">⬇</div></div>
+              <div class="report-row"><div class="report-icon">📄</div><div><b>Vitamin D Report</b><span>28 Mar 2025 · PDF</span></div><span class="status-pill" style="margin-right:8px;">Analyzed</span><div class="dl-btn" onclick="toast('Downloading…')">⬇</div></div>
+              <div class="report-row"><div class="report-icon">🖼️</div><div><b>Prescription</b><span>28 Mar 2025 · Image</span></div><span class="status-pill" style="margin-right:8px;">Analyzed</span><div class="dl-btn" onclick="toast('Downloading…')">⬇</div></div>
+              <button class="sub-btn" style="margin-top:10px;" onclick="navigate('reports')">⬆ Upload More Reports</button>
+            </div>
+          </div>
+
+          <!-- Wellness -->
+          <div class="panel">
+            <div class="panel-head"><div><h3>AYUSH Wellness &amp; Lifestyle</h3><p>Small steps for a healthier you · Based on your Prakriti and health history</p></div></div>
+            <div class="wellness-grid">
+              <div class="well-card" onclick="navigateAndScroll('medicines','dietSection')"><div class="icon">🍲</div><b>Diet Suggestion</b><p>Light and warm meals, avoid spicy and oily food.</p><span class="link">View Plan →</span></div>
+              <div class="well-card" onclick="toast('Opening daily routine')"><div class="icon">🌞</div><b>Daily Routine</b><p>Improve sleep, reduce screen time before bed.</p><span class="link">View Routine →</span></div>
+              <div class="well-card" onclick="toast('Opening herbal guidance')"><div class="icon">🌿</div><b>Herbal Guidance</b><p>Ashwagandha (consult doctor) for stress and fatigue.</p><span class="link">Learn More →</span></div>
+              <div class="well-card" onclick="toast('Opening mind & stress tips')"><div class="icon">🧘</div><b>Mind &amp; Stress</b><p>Try 5 minutes of deep breathing every day.</p><span class="link">View Tips →</span></div>
+            </div>
+          </div>
+
+          <div class="footer-bar">
+            <span>🌿 Stay consistent. Stay healthier. &nbsp;·&nbsp; Your health journey is a marathon, not a sprint.</span>
+            <span>→</span>
+          </div>
+        </div>
+
+        <!-- RIGHT RAIL -->
+        <div class="home-rail">
+
+          <div class="panel readiness-card">
+            <div class="panel-head" style="justify-content:flex-start;gap:8px;"><div class="qa-icon" style="width:32px;height:32px;background:var(--mint);">🔗</div><h3 style="margin:0;">Your Case Readiness</h3></div>
+            <div style="display:flex;align-items:center;gap:16px;margin:8px 0 4px;">
+              <div class="ring-wrap" style="margin:0;">
+                <svg viewBox="0 0 110 110">
+                  <circle cx="55" cy="55" r="48" stroke="#EAF7EF" stroke-width="10" fill="none"/>
+                  <circle cx="55" cy="55" r="48" stroke="#0E7C4A" stroke-width="10" fill="none"
+                    stroke-dasharray="301.6" stroke-dashoffset="66.4" stroke-linecap="round"/>
+                </svg>
+                <div class="ring-pct">78%</div>
+              </div>
+              <div style="text-align:left;">
+                <p style="font-size:12.5px;font-weight:700;margin:0;color:var(--green-dark);">Ready for Consultation</p>
+                <p style="font-size:11px;color:var(--muted);margin:4px 0 0;line-height:1.5;">AI has gathered most of your information. Complete the missing details for a more accurate case sheet.</p>
+              </div>
+            </div>
+            <div class="checklist">
+              <div class="check-item"><span class="cmark">✅</span> Chief complaint</div>
+              <div class="check-item"><span class="cmark">✅</span> Current medicines</div>
+              <div class="check-item"><span class="cmark">✅</span> Previous treatment</div>
+              <div class="check-item"><span class="cmark">✅</span> Reports</div>
+              <div class="check-item"><span class="cmark">✅</span> AYUSH history</div>
+              <div class="check-item warn"><span class="cmark">⚠️</span> Duration of symptoms</div>
+            </div>
+            <button class="sub-btn" style="margin-bottom:10px;" onclick="navigateAiStep('review')">View Details →</button>
+            <div class="missing-banner" onclick="pop(this); navigateAiStep('symptoms');">
+              <span>📅</span>
+              <div><b>2 important details are missing</b><span>Help us complete your case</span></div>
+              <span>→</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3 style="display:flex;align-items:center;gap:6px;">📈 Health Trends</h3><span class="panel-link" onclick="navigateAndScroll('health','trendHeroPanel')">View All →</span></div>
+            <div class="trend-tabs">
+              <span class="trend-tab active" onclick="setTrend(this,'weight')">Weight</span>
+              <span class="trend-tab" onclick="setTrend(this,'sleep')">Sleep</span>
+              <span class="trend-tab" onclick="setTrend(this,'steps')">Steps</span>
+              <span class="trend-tab" onclick="setTrend(this,'heart')">Heart Rate</span>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:10px;">
+              <svg viewBox="0 0 260 120" style="width:100%;height:120px;flex:1;overflow:visible;">
+                <defs><linearGradient id="miniTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0E7C4A" stop-opacity="0.24"/><stop offset="100%" stop-color="#0E7C4A" stop-opacity="0"/></linearGradient></defs>
+                <line x1="0" y1="20" x2="0" y2="98" stroke="#EAF7EF" stroke-width="1"/>
+                <line x1="0" y1="98" x2="260" y2="98" stroke="#EAF7EF" stroke-width="1"/>
+                <line x1="0" y1="59" x2="260" y2="59" stroke="#F0F6F2" stroke-width="1" stroke-dasharray="3,3"/>
+                <path id="trendArea" fill="url(#miniTrendFill)" stroke="none" d="M10,60 50,52 90,56 130,40 170,44 210,26 250,32 L250,98 L10,98 Z"/>
+                <polyline id="trendLine" class="chart-glow-green" points="10,60 50,52 90,56 130,40 170,44 210,26 250,32" fill="none" stroke="#0E7C4A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <g id="trendDots" fill="#0E7C4A">
+                  <circle cx="10" cy="60" r="3.2"/><circle cx="50" cy="52" r="3.2"/><circle cx="90" cy="56" r="3.2"/>
+                  <circle cx="130" cy="40" r="3.2"/><circle cx="170" cy="44" r="3.2"/><circle cx="210" cy="26" r="3.2"/>
+                  <circle cx="250" cy="32" r="4.4" stroke="#fff" stroke-width="2"/>
+                </g>
+              </svg>
+              <div class="trend-current">
+                <span id="trendVal">62</span>
+                <b id="trendUnit">kg</b>
+                <span class="trend-cur-label">Current</span>
+              </div>
+            </div>
+            <div class="trend-dates">
+              <span>5 Jun</span><span>8 Jun</span><span>11 Jun</span><span>14 Jun</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>🔔 Health Reminders</h3><span class="panel-link" onclick="navigate('medicines')">View All →</span></div>
+            <div class="reminder-row"><div class="reminder-ic">💊</div><div><b>Take your medicines</b><span>Today, 8:00 AM</span></div><span class="reminder-check">✓</span></div>
+            <div class="reminder-row"><div class="reminder-ic">💧</div><div><b>Stay hydrated</b><span>Today, 10:00 AM</span></div><span class="reminder-ring"></span></div>
+            <div class="reminder-row"><div class="reminder-ic">🌙</div><div><b>Get enough sleep</b><span>Today, 10:00 PM</span></div><span class="reminder-ring"></span></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    <!-- ===================== MY HEALTH PAGE ===================== -->
+    <div id="page-health" class="page" style="display:none;">
+
+      <div class="health-summary-banner">
+        <div>
+          <h2>Your Health, at a Glance 💙</h2>
+          <p id="healthSummaryText">This week you're doing a little better than last: sleep and energy are trending up, digestion is steady, and acidity symptoms have eased since your last visit.</p>
+        </div>
+        <div class="health-score-ring-wrap">
+          <div class="ring-wrap health-ring">
+            <svg viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="48" stroke="#DCEBF8" stroke-width="10" fill="none"/>
+              <circle cx="55" cy="55" r="48" stroke="#2E6FA3" stroke-width="10" fill="none"
+                stroke-dasharray="301.6" stroke-dashoffset="54.3" stroke-linecap="round"/>
+            </svg>
+            <div class="ring-pct" style="color:var(--sky-blue-dark);">82%</div>
+          </div>
+          <div class="health-ring-label"><b>Wellness Score</b><span>↑ 6 pts since last visit</span></div>
+        </div>
+      </div>
+
+      <div class="panel health-panel" style="margin-bottom:20px;">
+        <div class="panel-head"><div><h3>📏 Body Measurements</h3><p>Keep your height and weight up to date — this feeds your BMI and your doctor's case sheet automatically.</p></div></div>
+        <div class="measure-layout">
+          <div class="measure-form">
+            <div class="measure-fields-row">
+              <div class="measure-field">
+                <div class="field-label-row">
+                  <label for="inputHeight">Height</label>
+                  <div class="unit-toggle">
+                    <button type="button" class="unit-btn active" id="unitHeightCm" onclick="setHeightUnit('cm')">cm</button>
+                    <button type="button" class="unit-btn" id="unitHeightFt" onclick="setHeightUnit('ft')">ft/in</button>
+                  </div>
+                </div>
+                <input type="number" id="inputHeight" value="170" min="50" max="250" oninput="calcBMI()">
+                <div class="ft-in-row" id="heightFtInRow" style="display:none;">
+                  <input type="number" id="inputHeightFt" placeholder="ft" min="1" max="8" oninput="syncFtIn()">
+                  <input type="number" id="inputHeightIn" placeholder="in" min="0" max="11" oninput="syncFtIn()">
+                </div>
+              </div>
+              <div class="measure-field">
+                <div class="field-label-row">
+                  <label for="inputWeight">Weight</label>
+                  <div class="unit-toggle">
+                    <button type="button" class="unit-btn active" id="unitWeightKg" onclick="setWeightUnit('kg')">kg</button>
+                    <button type="button" class="unit-btn" id="unitWeightLb" onclick="setWeightUnit('lb')">lb</button>
+                  </div>
+                </div>
+                <input type="number" id="inputWeight" value="62" min="20" max="300" oninput="calcBMI()">
+              </div>
+            </div>
+
+            <div class="measure-fields-row">
+              <div class="measure-field">
+                <label for="inputAge">Age (years)</label>
+                <input type="number" id="inputAge" value="32" min="2" max="110" oninput="calcBMI()">
+              </div>
+              <div class="measure-field">
+                <label>Gender <span style="font-weight:500;color:var(--muted);">(for the body figure)</span></label>
+                <div class="gender-toggle">
+                  <button type="button" class="gender-btn active" id="genderMaleBtn" onclick="setGender('male')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="14" r="6"/><path d="M14.5 9.5L20 4M20 4H15M20 4V9"/></svg>
+                    Male
+                  </button>
+                  <button type="button" class="gender-btn" id="genderFemaleBtn" onclick="setGender('female')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="9" r="6"/><path d="M12 15V22M8.5 18.5H15.5"/></svg>
+                    Female
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button class="sub-btn solid sky" style="width:auto;padding:10px 20px;" onclick="pop(this); toast('Measurements saved')">Save Measurements</button>
+
+            <div class="bmi-result">
+              <div class="bmi-value-wrap">
+                <span class="bmi-value" id="bmiValue">21.5</span>
+                <span class="bmi-tag normal" id="bmiTag">Normal</span>
+              </div>
+              <p class="bmi-note" id="bmiNote">Your BMI (Body Mass Index), calculated from the values above.</p>
+              <div class="bmi-scale">
+                <div class="bmi-scale-bar">
+                  <span class="seg under"></span><span class="seg normal"></span><span class="seg over"></span><span class="seg obese"></span>
+                  <div class="bmi-marker" id="bmiMarker"></div>
+                </div>
+                <div class="bmi-scale-labels"><span>Underweight</span><span>Normal</span><span>Overweight</span><span>Obese</span></div>
+              </div>
+              <div class="bmi-age-note" id="bmiAgeNote">Heads up: standard BMI cut-offs are designed for adults 20+. For children, teens, and adults 65+, ask your doctor to judge this alongside age-specific growth charts.</div>
+            </div>
+          </div>
+
+          <div class="measure-figure">
+            <svg viewBox="-10 -55 180 355" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="bodyFillGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#1FA968" stop-opacity="0.28"/>
+                  <stop offset="100%" stop-color="#0E7C4A" stop-opacity="0.10"/>
+                </linearGradient>
+              </defs>
+              <line x1="16" y1="20" x2="16" y2="280" stroke="#BFE3CD" stroke-width="1.4" stroke-dasharray="4,4"/>
+              <path d="M11 20 L16 13 L21 20" fill="none" stroke="#1F8B4C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M11 280 L16 287 L21 280" fill="none" stroke="#1F8B4C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <text x="6" y="150" transform="rotate(-90 6 150)" font-family="Inter,sans-serif" font-size="9" fill="#5C9A78" text-anchor="middle" letter-spacing="1">HEIGHT</text>
+
+              <!-- Body dummy: scales with height (Y) and weight/BMI (X), anchored at the feet -->
+              <g id="bodyScaleWrap" style="transform-origin:80px 288px;">
+
+                <!-- MALE dummy: broad shoulders tapering to narrower hips (V-shape) -->
+                <g id="bodyMale" fill="url(#bodyFillGrad)" stroke="#0E7C4A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+                  <circle cx="80" cy="34" r="19"/>
+                  <path d="M70 50 L70 62 Q80 68 90 62 L90 50 Z"/>
+                  <path d="M50 64 L110 64 Q106 86 100 108 Q104 130 103 152 L57 152 Q56 130 60 108 Q54 86 50 64 Z"/>
+                  <path d="M52 68 C42 74 36 84 34 98 L28 140 Q27 148 34 151 Q41 153 43 145 L50 102"/>
+                  <path d="M108 68 C118 74 124 84 126 98 L132 140 Q133 148 126 151 Q119 153 117 145 L110 102"/>
+                  <ellipse cx="31" cy="147" rx="7.5" ry="6"/>
+                  <ellipse cx="129" cy="147" rx="7.5" ry="6"/>
+                  <path d="M58 152 L56 220 Q55 240 59 256 L63 284 L77 284 L75 256 L76 204 L79 152 Z"/>
+                  <path d="M102 152 L104 220 Q105 240 101 256 L97 284 L83 284 L85 256 L84 204 L81 152 Z"/>
+                  <ellipse cx="67" cy="288" rx="11" ry="6"/>
+                  <ellipse cx="93" cy="288" rx="11" ry="6"/>
+                </g>
+
+                <!-- FEMALE dummy: narrower shoulders, cinched waist, wider hips (hourglass) -->
+                <g id="bodyFemale" fill="url(#bodyFillGrad)" stroke="#0E7C4A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" style="display:none;">
+                  <circle cx="80" cy="34" r="18"/>
+                  <path d="M71 49 L71 61 Q80 66 89 61 L89 49 Z"/>
+                  <path d="M58 64 L102 64 Q98 86 94 108 Q104 130 107 152 L53 152 Q56 130 66 108 Q62 86 58 64 Z"/>
+                  <path d="M60 68 C50 74 44 83 42 96 L37 136 Q36 144 42 147 Q48 149 50 141 L57 100"/>
+                  <path d="M100 68 C110 74 116 83 118 96 L123 136 Q124 144 118 147 Q112 149 110 141 L103 100"/>
+                  <ellipse cx="39" cy="143" rx="7" ry="5.5"/>
+                  <ellipse cx="121" cy="143" rx="7" ry="5.5"/>
+                  <path d="M55 152 L52 212 Q51 232 56 252 L61 284 L74 284 L71 252 L74 212 L76 152 Z"/>
+                  <path d="M105 152 L108 212 Q109 232 104 252 L99 284 L86 284 L89 252 L86 212 L84 152 Z"/>
+                  <ellipse cx="66" cy="288" rx="10.5" ry="6"/>
+                  <ellipse cx="90" cy="288" rx="10.5" ry="6"/>
+                </g>
+
+              </g>
+            </svg>
+            <div class="measure-figure-stats"><span id="figHeightLbl">170 cm</span><span id="figWeightLbl">62 kg</span></div>
+            <p class="measure-figure-caption">This dummy resizes with your height &amp; weight and mirrors the gender you pick above — every update also feeds the Weight trend chart below.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel health-panel" style="margin-bottom:20px;">
+        <div class="panel-head"><div><h3>💊 Current Treatments</h3><p>Your active treatment plans, prescribed by your doctor, and how they're progressing</p></div></div>
+        <div class="treatment-list">
+
+          <div class="treatment-card">
+            <div class="treatment-top">
+              <div class="treatment-info">
+                <div class="treatment-ic" style="background:linear-gradient(145deg,#EAF3FB,#DCEBF8);color:var(--sky-blue);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20C12 20 4 14.5 4 9.2C4 6.3 6.2 4 9 4C10.4 4 11.5 4.6 12 5.6C12.5 4.6 13.6 4 15 4C17.8 4 20 6.3 20 9.2C20 14.5 12 20 12 20Z"/></svg>
+                </div>
+                <div>
+                  <p class="treatment-name">Acidity &amp; Sleep Management</p>
+                  <p class="treatment-meta">Dr. Meera Sharma · Ayurveda · Started 12 Jun 2025 · 30-day plan</p>
+                </div>
+              </div>
+              <span class="treatment-status ontrack">On Track</span>
+            </div>
+            <div class="treatment-progress-row">
+              <div class="treatment-progress-track"><div class="treatment-progress-fill" style="width:60%;"></div></div>
+              <span class="treatment-progress-pct">60%</span>
+            </div>
+            <div class="treatment-footer">
+              <span>Day 18 of 30 · symptoms reduced from moderate to mild</span>
+              <span class="treatment-next">Next dose: Today, 8:00 PM</span>
+            </div>
+          </div>
+
+          <div class="treatment-card">
+            <div class="treatment-top">
+              <div class="treatment-info">
+                <div class="treatment-ic" style="background:linear-gradient(145deg,var(--mint),#DFF3E7);color:var(--green-primary);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3V21M12 3C9.5 3 8 5 8 7.5C8 10 9.5 12 12 12C14.5 12 16 14 16 16.5C16 19 14.5 21 12 21"/></svg>
+                </div>
+                <div>
+                  <p class="treatment-name">Vitamin D Supplementation</p>
+                  <p class="treatment-meta">Dr. Rohan Patel · General Physician · Started 28 Mar 2025 · 60-day plan</p>
+                </div>
+              </div>
+              <span class="treatment-status ontrack">On Track</span>
+            </div>
+            <div class="treatment-progress-row">
+              <div class="treatment-progress-track"><div class="treatment-progress-fill" style="width:67%;"></div></div>
+              <span class="treatment-progress-pct">67%</span>
+            </div>
+            <div class="treatment-footer">
+              <span>Day 40 of 60 · latest levels trending back to normal range</span>
+              <span class="treatment-next">Next dose: Sun, 9:00 AM</span>
+            </div>
+          </div>
+
+          <div class="treatment-card">
+            <div class="treatment-top">
+              <div class="treatment-info">
+                <div class="treatment-ic" style="background:linear-gradient(145deg,#F4ECFB,#E7D6F5);color:#6E3F96;">
+                  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.5 14.5C19.4 15 18.2 15.3 17 15.3C12.4 15.3 8.7 11.6 8.7 7C8.7 5.8 9 4.6 9.5 3.5C6 4.6 3.5 7.9 3.5 11.8C3.5 16.6 7.4 20.5 12.2 20.5C16.1 20.5 19.4 18 20.5 14.5Z"/></svg>
+                </div>
+                <div>
+                  <p class="treatment-name">Stress &amp; Sleep — Ashwagandha Course</p>
+                  <p class="treatment-meta">Dr. Meera Sharma · Ayurveda · Started 9 Jun 2025 · 14-day plan</p>
+                </div>
+              </div>
+              <span class="treatment-status attention">Needs Review</span>
+            </div>
+            <div class="treatment-progress-row">
+              <div class="treatment-progress-track"><div class="treatment-progress-fill amber" style="width:36%;"></div></div>
+              <span class="treatment-progress-pct">36%</span>
+            </div>
+            <div class="treatment-footer">
+              <span>Day 5 of 14 · 2 doses missed this week — mention at next visit</span>
+              <span class="treatment-next">Next dose: Today, 10:00 PM</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <p class="section-label">🩺 Key Health Metrics <span style="font-weight:500;color:var(--muted);font-size:10.5px;">· tap a card to see its 6-week trend</span></p>
+      <div class="metrics-grid">
+        <div class="metric-card" onclick="activateHealthTab('weight')">
+          <div class="metric-top"><div class="metric-ic ic-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4L9 8H15L12 4Z"/><path d="M12 8V6"/><path d="M4 8H20L18.5 19C18.4 19.9 17.6 20.5 16.7 20.5H7.3C6.4 20.5 5.6 19.9 5.5 19L4 8Z"/></svg></div><span class="metric-delta good">▼ 3%</span></div>
+          <p class="metric-name">Weight</p>
+          <div class="metric-value"><span id="metricWeightValue">62</span><span>kg</span></div>
+          <svg class="metric-spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <defs><linearGradient id="sparkFillW" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2E6FA3" stop-opacity="0.3"/><stop offset="100%" stop-color="#2E6FA3" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,6 20,9 40,11 60,15 80,20 100,24 L100,32 L0,32 Z" fill="url(#sparkFillW)" stroke="none"/>
+            <polyline points="0,6 20,9 40,11 60,15 80,20 100,24" fill="none" stroke="#2E6FA3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="100" cy="24" r="2.6" fill="#2E6FA3"/>
+          </svg>
+        </div>
+        <div class="metric-card" onclick="activateHealthTab('bp')">
+          <div class="metric-top"><div class="metric-ic ic-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C7.5 17.5 4 13.9 4 9.8C4 6.6 6.4 4.5 9 4.5C10.5 4.5 11.6 5.2 12 6.1C12.4 5.2 13.5 4.5 15 4.5C17.6 4.5 20 6.6 20 9.8C20 13.9 16.5 17.5 12 21Z"/><path d="M8 11L10 9L12 12L14 8L16 11" stroke-width="1.5"/></svg></div><span class="metric-delta good">▼ 7%</span></div>
+          <p class="metric-name">Blood Pressure</p>
+          <div class="metric-value">128<span>/82 mmHg</span></div>
+          <svg class="metric-spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <defs><linearGradient id="sparkFillBP" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#D9503A" stop-opacity="0.25"/><stop offset="100%" stop-color="#D9503A" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,5 20,8 40,12 60,16 80,21 100,25 L100,32 L0,32 Z" fill="url(#sparkFillBP)" stroke="none"/>
+            <polyline points="0,5 20,8 40,12 60,16 80,21 100,25" fill="none" stroke="#D9503A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="100" cy="25" r="2.6" fill="#D9503A"/>
+          </svg>
+        </div>
+        <div class="metric-card" onclick="activateHealthTab('sugar')">
+          <div class="metric-top"><div class="metric-ic ic-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3C12 3 6 10.5 6 14.5C6 18 8.7 20.5 12 20.5C15.3 20.5 18 18 18 14.5C18 10.5 12 3 12 3Z"/><path d="M9 15C9 16.7 10.3 18 12 18" stroke-width="1.5"/></svg></div><span class="metric-delta good">▼ 17%</span></div>
+          <p class="metric-name">Blood Sugar (F)</p>
+          <div class="metric-value">118<span>mg/dL</span></div>
+          <svg class="metric-spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <defs><linearGradient id="sparkFillS" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#B4790E" stop-opacity="0.25"/><stop offset="100%" stop-color="#B4790E" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,4 20,8 40,12 60,16 80,21 100,26 L100,32 L0,32 Z" fill="url(#sparkFillS)" stroke="none"/>
+            <polyline points="0,4 20,8 40,12 60,16 80,21 100,26" fill="none" stroke="#B4790E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="100" cy="26" r="2.6" fill="#B4790E"/>
+          </svg>
+        </div>
+        <div class="metric-card" onclick="activateHealthTab('heart')">
+          <div class="metric-top"><div class="metric-ic ic-pink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12H7L9.5 6L13 18L15.5 12H21" stroke-width="1.7"/></svg></div><span class="metric-delta good">▼ 10%</span></div>
+          <p class="metric-name">Heart Rate</p>
+          <div class="metric-value">74<span>bpm</span></div>
+          <svg class="metric-spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <defs><linearGradient id="sparkFillH" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C23D74" stop-opacity="0.25"/><stop offset="100%" stop-color="#C23D74" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,6 20,9 40,10 60,14 80,19 100,23 L100,32 L0,32 Z" fill="url(#sparkFillH)" stroke="none"/>
+            <polyline points="0,6 20,9 40,10 60,14 80,19 100,23" fill="none" stroke="#C23D74" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="100" cy="23" r="2.6" fill="#C23D74"/>
+          </svg>
+        </div>
+        <div class="metric-card" onclick="activateHealthTab('sleep')">
+          <div class="metric-top"><div class="metric-ic ic-purple"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.5 14.5C19.4 15 18.2 15.3 17 15.3C12.4 15.3 8.7 11.6 8.7 7C8.7 5.8 9 4.6 9.5 3.5C6 4.6 3.5 7.9 3.5 11.8C3.5 16.6 7.4 20.5 12.2 20.5C16.1 20.5 19.4 18 20.5 14.5Z"/></svg></div><span class="metric-delta good">▲ 36%</span></div>
+          <p class="metric-name">Sleep Avg</p>
+          <div class="metric-value">6.8<span>hrs</span></div>
+          <svg class="metric-spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <defs><linearGradient id="sparkFillSl" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6E3F96" stop-opacity="0.25"/><stop offset="100%" stop-color="#6E3F96" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,24 20,20 40,16 60,13 80,9 100,5 L100,32 L0,32 Z" fill="url(#sparkFillSl)" stroke="none"/>
+            <polyline points="0,24 20,20 40,16 60,13 80,9 100,5" fill="none" stroke="#6E3F96" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="100" cy="5" r="2.6" fill="#6E3F96"/>
+          </svg>
+        </div>
+        <div class="metric-card" onclick="activateHealthTab('steps')">
+          <div class="metric-top"><div class="metric-ic ic-green"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M9.5 3C10.6 3 11.5 4 11.5 5.5C11.5 6.7 10.9 7.4 10.2 8C9.6 8.5 9 9 9 10C9 10.8 9.4 11.2 10 11.6C9.3 11.9 8.5 12 8 12C6.6 12 5.5 10.9 5.5 9.3C5.5 8 6.2 7.2 6.9 6.6C7.6 6 8.2 5.5 8.2 4.6C8.2 3.7 8.7 3 9.5 3Z"/><path d="M15 10.5C16.1 10.5 17 11.5 17 13C17 14.2 16.4 14.9 15.7 15.5C15.1 16 14.5 16.5 14.5 17.5C14.5 18.3 14.9 18.7 15.5 19.1C14.8 19.4 14 19.5 13.5 19.5C12.1 19.5 11 18.4 11 16.8C11 15.5 11.7 14.7 12.4 14.1C13.1 13.5 13.7 13 13.7 12.1C13.7 11.2 14.2 10.5 15 10.5Z"/></svg></div><span class="metric-delta good">▲ 87%</span></div>
+          <p class="metric-name">Steps Avg</p>
+          <div class="metric-value">7.8<span>k/day</span></div>
+          <svg class="metric-spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <defs><linearGradient id="sparkFillSt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0E7C4A" stop-opacity="0.25"/><stop offset="100%" stop-color="#0E7C4A" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,25 20,22 40,18 60,14 80,9 100,4 L100,32 L0,32 Z" fill="url(#sparkFillSt)" stroke="none"/>
+            <polyline points="0,25 20,22 40,18 60,14 80,9 100,4" fill="none" stroke="#0E7C4A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="100" cy="4" r="2.6" fill="#0E7C4A"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="panel health-panel trend-hero" id="trendHeroPanel">
+        <div class="trend-hero-head">
+          <div>
+            <h3 style="color:var(--sky-blue-dark);margin:0 0 2px;font-family:'Manrope',sans-serif;font-weight:700;font-size:15px;">📊 Health Trends</h3>
+            <p style="font-size:11.5px;color:var(--muted);margin:0;" id="heroDescription">Tracking your weight over the last 6 weeks. A steady downward line here is a good sign.</p>
+            <div class="trend-hero-tabs">
+              <span class="trend-tab active" data-key="weight" onclick="setHealthTrend(this,'weight')">Weight</span>
+              <span class="trend-tab" data-key="bp" onclick="setHealthTrend(this,'bp')">Blood Pressure</span>
+              <span class="trend-tab" data-key="sugar" onclick="setHealthTrend(this,'sugar')">Blood Sugar</span>
+              <span class="trend-tab" data-key="heart" onclick="setHealthTrend(this,'heart')">Heart Rate</span>
+              <span class="trend-tab" data-key="sleep" onclick="setHealthTrend(this,'sleep')">Sleep</span>
+              <span class="trend-tab" data-key="steps" onclick="setHealthTrend(this,'steps')">Steps</span>
+            </div>
+          </div>
+          <div class="trend-hero-stat">
+            <div class="val"><span id="heroValNum">62</span><span id="heroUnit">kg</span></div>
+            <div class="delta good" id="heroDelta">▼ 2 kg lighter than 6 weeks ago</div>
+          </div>
+        </div>
+        <div class="trend-hero-chart">
+          <svg viewBox="0 0 600 210" id="heroSvg" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2E6FA3" stop-opacity="0.28"/>
+                <stop offset="100%" stop-color="#2E6FA3" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="30" y1="25" x2="580" y2="25" stroke="#EEF4FA" stroke-width="1" class="grid-dash"/>
+            <line x1="30" y1="115" x2="580" y2="115" stroke="#EEF4FA" stroke-width="1" class="grid-dash"/>
+            <line x1="30" y1="205" x2="580" y2="205" stroke="#D7E7F5" stroke-width="1"/>
+            <text x="0" y="29" class="trend-axis-label" id="heroMaxLbl">70</text>
+            <text x="0" y="119" class="trend-axis-label" id="heroMidLbl">65</text>
+            <text x="0" y="209" class="trend-axis-label" id="heroMinLbl">60</text>
+            <path id="heroArea" fill="url(#heroFill)" stroke="none"/>
+            <path id="heroLine" class="chart-glow" fill="none" stroke="#2E6FA3" stroke-width="3" stroke-linecap="round"/>
+            <g id="heroDots" fill="#2E6FA3"></g>
+          </svg>
+          <div class="trend-hero-labels">
+            <span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>This wk</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel health-panel">
+          <div class="panel-head"><div><h3>Weekly Wellness Trend</h3><p>Your overall wellness score, last 6 weeks</p></div></div>
+          <div class="wellness-chart-wrap">
+            <span class="wellness-current-badge" id="wellCurrentBadge">82</span>
+            <svg viewBox="0 0 320 150" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="wellFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#0E7C4A" stop-opacity="0.22"/>
+                  <stop offset="100%" stop-color="#0E7C4A" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line x1="24" y1="15" x2="310" y2="15" stroke="#EEF4FA" stroke-width="1" class="grid-dash"/>
+              <line x1="24" y1="80" x2="310" y2="80" stroke="#EEF4FA" stroke-width="1" class="grid-dash"/>
+              <line x1="24" y1="145" x2="310" y2="145" stroke="#D7E7F5" stroke-width="1"/>
+              <text x="0" y="19" class="trend-axis-label">100</text>
+              <text x="0" y="84" class="trend-axis-label">70</text>
+              <text x="0" y="149" class="trend-axis-label">40</text>
+              <path id="wellArea" fill="url(#wellFill)" stroke="none"/>
+              <path id="wellLine" class="chart-glow-green" fill="none" stroke="#0E7C4A" stroke-width="2.8" stroke-linecap="round"/>
+              <g id="wellDots" fill="#0E7C4A"></g>
+            </svg>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);padding:0 6px;">
+            <span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span><span>W6</span><span>This wk</span>
+          </div>
+        </div>
+
+        <div class="panel health-panel">
+          <div class="panel-head"><div><h3>This Week vs Last Week</h3><p>By category</p></div></div>
+          <div class="bar-compare bar-compare-v2">
+            <div class="bar-row"><span class="bar-label"><span class="ic ic-purple"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.5 14.5C19.4 15 18.2 15.3 17 15.3C12.4 15.3 8.7 11.6 8.7 7C8.7 5.8 9 4.6 9.5 3.5C6 4.6 3.5 7.9 3.5 11.8C3.5 16.6 7.4 20.5 12.2 20.5C16.1 20.5 19.4 18 20.5 14.5Z"/></svg></span>Sleep</span><div class="bar-track"><div class="bar-fill bar-fill-grad" style="width:72%;"></div></div><b><span class="delta-arrow">▲</span>14%</b></div>
+            <div class="bar-row"><span class="bar-label"><span class="ic ic-amber"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L4.5 13.5H11L10 22L19 10H12.5L13 2Z"/></svg></span>Energy</span><div class="bar-track"><div class="bar-fill bar-fill-grad" style="width:64%;"></div></div><b><span class="delta-arrow">▲</span>9%</b></div>
+            <div class="bar-row"><span class="bar-label"><span class="ic ic-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V6M12 18V20.5M3.5 12H6M18 12H20.5"/></svg></span>Digestion</span><div class="bar-track"><div class="bar-fill bar-fill-grad" style="width:55%;"></div></div><b><span class="delta-arrow">▲</span>2%</b></div>
+            <div class="bar-row"><span class="bar-label"><span class="ic ic-red"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2C12 6 8 8 8 12.5C8 15 9.8 17 12 17C10.8 15.8 10.5 14.5 11 13.3C11.5 14.3 12.3 14.8 13 15.5C14.2 16.7 14.5 18.5 13.5 20C15.8 19 17.5 16.5 17.5 13.8C17.5 8.5 12 7.5 12 2Z"/></svg></span>Pain / Acidity</span><div class="bar-track"><div class="bar-fill bar-fill-grad down" style="width:38%;"></div></div><b class="down"><span class="delta-arrow">▼</span>22%</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel health-panel" style="margin-bottom:16px;">
+        <div class="panel-head">
+          <div><h3>What's New Since Last Visit</h3><p id="lastSynced">Last checked just now</p></div>
+          <div class="refresh-btn" id="refreshBtn" onclick="refreshHealth()">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 12C4 7.6 7.6 4 12 4C14.6 4 16.9 5.3 18.3 7.2M20 12C20 16.4 16.4 20 12 20C9.4 20 7.1 18.7 5.7 16.8" stroke="#2E6FA3" stroke-width="1.8" stroke-linecap="round"/><path d="M18 4V7.5H14.5M6 20V16.5H9.5" stroke="#2E6FA3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <ul class="whats-new-list">
+          <li>✅ Acidity symptoms reduced from "moderate" to "mild"</li>
+          <li>✅ Sleep quality improved — averaging 6.5 hrs vs 5.2 hrs before</li>
+          <li>🆕 New lab report added: Vitamin D Report</li>
+          <li>⚠️ Duration of current symptoms still needs to be specified</li>
+        </ul>
+      </div>
+
+      <p class="section-label">📅 Appointments <span style="font-weight:500;color:var(--muted);font-size:10.5px;">· book new visits and review past ones here</span></p>
+      <div class="grid-2">
+        <div class="panel health-panel">
+          <div class="panel-head"><h3>Your Recent Visits</h3><span class="panel-link" style="color:var(--sky-blue);" onclick="toast('Opening all visits')">View All →</span></div>
+          <div class="visit-row">
+            <div class="visit-date" style="color:var(--sky-blue);"><b style="color:var(--sky-blue);">12</b><span>Jun 2025</span></div>
+            <div class="visit-info"><b>Dr. Meera Sharma</b><span class="doc-tag" style="color:var(--sky-blue);">Ayurveda</span><div class="reason">Reason: Acidity &amp; Sleep Issues</div></div>
+            <div><span class="status-pill sky">Completed</span><button class="sub-btn" style="margin-top:8px;" onclick="toast('Opening visit details')">View Details</button></div>
+          </div>
+          <div class="visit-row">
+            <div class="visit-date" style="color:var(--sky-blue);"><b style="color:var(--sky-blue);">28</b><span>Mar 2025</span></div>
+            <div class="visit-info"><b>Dr. Rohan Patel</b><span class="doc-tag" style="color:var(--sky-blue);">Ayurveda</span><div class="reason">Reason: General Checkup</div></div>
+            <div><span class="status-pill sky">Completed</span><button class="sub-btn" style="margin-top:8px;" onclick="toast('Opening visit details')">View Details</button></div>
+          </div>
+        </div>
+
+        <div class="panel health-panel">
+          <div class="panel-head"><h3>Upcoming Appointment</h3><span class="panel-link" style="color:var(--sky-blue);" onclick="toast('Opening booking')">Book New →</span></div>
+          <div class="upcoming-empty">
+            <div style="font-size:28px;">📅</div>
+            <p>No appointment scheduled yet.</p>
+            <button class="sub-btn solid sky" onclick="pop(this); toast('Opening booking')">Book Appointment</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- end page-health -->
+
+    <!-- ===================== AI CASE TAKING PAGE ===================== -->
+    <div id="page-ai" class="page" style="display:none;">
+      <div class="page-banner mint">
+        <div>
+          <h2>🩺 AI Case Taking <span class="pill-ai" style="margin-left:6px;">✨ Powered by AI</span></h2>
+          <p>Walk through symptoms, reports and medicines below — we'll structure it all into a clean case sheet your doctor can read in seconds.</p>
+        </div>
+        <div class="page-stat-chip"><b id="aiReadyPct">35%</b><span>Case Ready</span></div>
+      </div>
+
+      <div class="sub-tabs" id="aiStepTabs">
+        <div class="sub-tab active" data-step="symptoms" onclick="goAiStep('symptoms')"><span class="num">1</span> Symptoms</div>
+        <div class="sub-tab" data-step="reports" onclick="goAiStep('reports')"><span class="num">2</span> Reports</div>
+        <div class="sub-tab" data-step="medicines" onclick="goAiStep('medicines')"><span class="num">3</span> Medicines</div>
+        <div class="sub-tab" data-step="review" onclick="goAiStep('review')"><span class="num">4</span> Review &amp; Submit</div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <!-- Step 1: Symptoms -->
+          <div class="panel tab-panel show" id="aiPanel-symptoms">
+            <div class="panel-head"><div><h3>🎙️ Tell us your symptoms</h3><p>Tap everything that applies — you can add more detail below.</p></div></div>
+            <div class="chip-select" id="symptomChips">
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Fatigue</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Acidity</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Headache</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Poor Sleep</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Joint Pain</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Cough</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Fever</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Nausea</span>
+              <span class="sel-chip" onclick="toggleChip(this,'symptom')">Anxiety</span>
+            </div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--green-dark);">Overall severity</label>
+            <div class="sev-row">
+              <input type="range" min="1" max="10" value="4" id="sevSlider" oninput="updateSeverity()">
+              <span class="sev-badge" id="sevBadge">Mild · 4/10</span>
+            </div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--green-dark);">Describe in your own words (optional)</label>
+            <textarea class="ai-textarea" id="aiInput" placeholder="e.g. I've been feeling tired since last week, worse in the evenings…" style="margin-top:6px;" oninput="updateReadiness()"></textarea>
+            <div class="precon-footer" style="margin-top:14px;">
+              <button class="btn-start-ai" onclick="goAiStep('reports')">Next: Upload Reports →</button>
+              <span class="precon-time">🕐 Step 1 of 4</span>
+            </div>
+          </div>
+
+          <!-- Step 2: Reports -->
+          <div class="panel tab-panel" id="aiPanel-reports">
+            <div class="panel-head"><div><h3>📄 Upload your reports</h3><p>Blood tests, prescriptions, scans — anything relevant to this visit.</p></div></div>
+            <div class="upload-zone" onclick="mockUpload()">
+              <div class="ic">⬆️</div>
+              <b>Click to upload a report</b>
+              <span>PDF, JPG or PNG · up to 10MB</span>
+            </div>
+            <div id="aiUploadList">
+              <div class="empty-hint">No reports added yet — uploaded files will appear here.</div>
+            </div>
+            <div class="precon-footer" style="margin-top:14px;">
+              <button class="btn-start-ai" onclick="goAiStep('medicines')">Next: Add Medicines →</button>
+              <span class="precon-time">🕐 Step 2 of 4</span>
+            </div>
+          </div>
+
+          <!-- Step 3: Medicines -->
+          <div class="panel tab-panel" id="aiPanel-medicines">
+            <div class="panel-head"><div><h3>💊 Current medicines</h3><p>Add anything you're currently taking, including over-the-counter items.</p></div></div>
+            <div class="med-add-row">
+              <input type="text" id="medNameInput" placeholder="Medicine name">
+              <input type="text" id="medDoseInput" placeholder="Dosage (e.g. 500mg)">
+              <select id="medFreqInput"><option>Once a day</option><option>Twice a day</option><option>Thrice a day</option><option>As needed</option></select>
+              <button onclick="addMedicine()">+ Add</button>
+            </div>
+            <div class="added-chip-row" id="aiMedList">
+              <div class="empty-hint">No medicines added yet.</div>
+            </div>
+            <div class="precon-footer" style="margin-top:14px;">
+              <button class="btn-start-ai" onclick="goAiStep('review')">Next: Review Case →</button>
+              <span class="precon-time">🕐 Step 3 of 4</span>
+            </div>
+          </div>
+
+          <!-- Step 4: Review -->
+          <div class="panel tab-panel" id="aiPanel-review">
+            <div class="panel-head"><div><h3>✅ Review your case</h3><p>Here's the structured summary we'll send to your doctor.</p></div></div>
+            <div class="review-grid">
+              <div class="review-stat"><b id="reviewSymptomCount">0</b><span>Symptoms</span></div>
+              <div class="review-stat"><b id="reviewReportCount">0</b><span>Reports</span></div>
+              <div class="review-stat"><b id="reviewMedCount">0</b><span>Medicines</span></div>
+            </div>
+            <p style="font-size:11.5px;font-weight:700;color:var(--green-dark);margin:14px 0 4px;">Reported symptoms</p>
+            <div class="chip-select" id="reviewSymptomChips"><span class="empty-hint">Nothing selected yet — go back to Step 1.</span></div>
+            <button class="btn-start-ai" style="margin-top:16px;" onclick="submitCase()">Submit Case to Doctor →</button>
+          </div>
+        </div>
+
+        <!-- RIGHT RAIL -->
+        <div>
+          <div class="panel readiness-card">
+            <div class="panel-head" style="justify-content:flex-start;gap:8px;"><div class="qa-icon" style="width:32px;height:32px;background:var(--mint);">🔗</div><h3 style="margin:0;">Case Readiness</h3></div>
+            <div class="ring-wrap" id="aiRingWrap">
+              <svg viewBox="0 0 110 110">
+                <circle cx="55" cy="55" r="48" stroke="#EAF7EF" stroke-width="10" fill="none"/>
+                <circle cx="55" cy="55" r="48" stroke="#0E7C4A" stroke-width="10" fill="none" id="aiRingProgress"
+                  stroke-dasharray="301.6" stroke-dashoffset="196" stroke-linecap="round"/>
+              </svg>
+              <div class="ring-pct" id="aiRingPct">35%</div>
+            </div>
+            <div class="checklist" id="aiChecklist">
+              <div class="check-item warn" id="ck-symptoms"><span class="cmark">⚠️</span> Symptoms selected</div>
+              <div class="check-item warn" id="ck-severity"><span class="cmark">⚠️</span> Severity rated</div>
+              <div class="check-item warn" id="ck-reports"><span class="cmark">⚠️</span> Reports uploaded</div>
+              <div class="check-item warn" id="ck-medicines"><span class="cmark">⚠️</span> Medicines listed</div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:16px;">
+            <div class="panel-head"><h3 style="margin:0;">📊 Symptom Severity</h3></div>
+            <div class="severity-bars" id="severityBars">
+              <div class="empty-hint">Select symptoms in Step 1 to see this chart.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end page-ai -->
+
+    <!-- ===================== REPORTS & DOCUMENTS PAGE ===================== -->
+    <div id="page-reports" class="page" style="display:none;">
+      <div class="page-banner sky">
+        <div>
+          <h2>📁 Reports &amp; Documents</h2>
+          <p>Every lab report, prescription and scan you've shared with us, all AI-analyzed and ready for your doctor to review.</p>
+        </div>
+        <div class="page-stat-chip"><b style="color:var(--sky-blue-dark);">5</b><span>Total Documents</span></div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:4px;">
+        <div class="panel health-panel">
+          <div class="panel-head"><div><h3>Document Library</h3><p>Click a card to see its AI-generated summary</p></div></div>
+          <div class="doc-filter-tabs" id="docFilterTabs">
+            <span class="doc-filter active" onclick="filterDocs(this,'all')">All (5)</span>
+            <span class="doc-filter" onclick="filterDocs(this,'lab')">Lab Reports (2)</span>
+            <span class="doc-filter" onclick="filterDocs(this,'prescription')">Prescriptions (2)</span>
+            <span class="doc-filter" onclick="filterDocs(this,'imaging')">Imaging (1)</span>
+          </div>
+          <div class="doc-grid" id="docGrid">
+            <div class="doc-card" data-cat="lab" onclick="toggleDoc(this)">
+              <div class="doc-card-top"><div class="doc-card-ic">🧪</div><span class="status-pill sky">Analyzed</span></div>
+              <b>Blood Test Report</b><span class="meta">12 Jun 2025 · PDF · 1.2MB</span>
+              <div class="doc-card-foot"><span class="meta">Dr. Meera Sharma</span><span class="panel-link" style="color:var(--sky-blue);">View →</span></div>
+              <div class="doc-detail"><b>AI Summary:</b> Hemoglobin, WBC and lipid panel within normal range. Vitamin D borderline-low — flagged for follow-up. No urgent findings.</div>
+            </div>
+            <div class="doc-card" data-cat="lab" onclick="toggleDoc(this)">
+              <div class="doc-card-top"><div class="doc-card-ic">🧪</div><span class="status-pill sky">Analyzed</span></div>
+              <b>Vitamin D Report</b><span class="meta">28 Mar 2025 · PDF · 0.8MB</span>
+              <div class="doc-card-foot"><span class="meta">Dr. Rohan Patel</span><span class="panel-link" style="color:var(--sky-blue);">View →</span></div>
+              <div class="doc-detail"><b>AI Summary:</b> Vitamin D at 19 ng/mL (deficient). Supplementation started 28 Mar — latest labs trending back toward normal range.</div>
+            </div>
+            <div class="doc-card" data-cat="prescription" onclick="toggleDoc(this)">
+              <div class="doc-card-top"><div class="doc-card-ic">🖼️</div><span class="status-pill sky">Analyzed</span></div>
+              <b>Prescription — Cold &amp; Fever</b><span class="meta">12 Jan 2025 · Image · 2.1MB</span>
+              <div class="doc-card-foot"><span class="meta">Dr. Meera Sharma</span><span class="panel-link" style="color:var(--sky-blue);">View →</span></div>
+              <div class="doc-detail"><b>AI Summary:</b> Paracetamol 650mg and antihistamine, 5-day course, for cold and fever symptoms. Course completed with full recovery noted.</div>
+            </div>
+            <div class="doc-card" data-cat="prescription" onclick="toggleDoc(this)">
+              <div class="doc-card-top"><div class="doc-card-ic">🖼️</div><span class="status-pill sky">Analyzed</span></div>
+              <b>Prescription — Acidity Plan</b><span class="meta">12 Jun 2025 · Image · 1.6MB</span>
+              <div class="doc-card-foot"><span class="meta">Dr. Meera Sharma</span><span class="panel-link" style="color:var(--sky-blue);">View →</span></div>
+              <div class="doc-detail"><b>AI Summary:</b> Ayurvedic 30-day plan for acidity and sleep management, reviewed at day 18 — symptoms reduced from moderate to mild.</div>
+            </div>
+            <div class="doc-card" data-cat="imaging" onclick="toggleDoc(this)">
+              <div class="doc-card-top"><div class="doc-card-ic">🩻</div><span class="status-pill sky">Analyzed</span></div>
+              <b>Chest X-Ray</b><span class="meta">3 Feb 2025 · DICOM · 4.4MB</span>
+              <div class="doc-card-foot"><span class="meta">BPIT Health Center</span><span class="panel-link" style="color:var(--sky-blue);">View →</span></div>
+              <div class="doc-detail"><b>AI Summary:</b> Clear lung fields, no signs of infection or structural abnormality. Routine screening — no action needed.</div>
+            </div>
+          </div>
+          <button class="sub-btn sky" style="margin-top:4px;" onclick="mockUploadReport()">⬆ Upload New Document</button>
+        </div>
+
+        <div>
+          <div class="panel health-panel">
+            <div class="panel-head"><h3 style="margin:0;">📊 Documents by Type</h3></div>
+            <div class="donut-wrap">
+              <svg viewBox="0 0 120 120" style="width:120px;height:120px;flex-shrink:0;">
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#EAF3FB" stroke-width="16"/>
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#2E6FA3" stroke-width="16" stroke-dasharray="115.7 173.5" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#6E3F96" stroke-width="16" stroke-dasharray="115.7 173.5" stroke-dashoffset="-115.7" transform="rotate(-90 60 60)"/>
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#B4790E" stroke-width="16" stroke-dasharray="57.9 231.3" stroke-dashoffset="-231.4" transform="rotate(-90 60 60)"/>
+                <text x="60" y="56" text-anchor="middle" font-family="Manrope,sans-serif" font-weight="800" font-size="20" fill="var(--sky-blue-dark)">5</text>
+                <text x="60" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="var(--muted)">documents</text>
+              </svg>
+              <div class="donut-legend">
+                <div class="donut-legend-row"><span class="sw" style="background:#2E6FA3;"></span>Lab Reports<b>2</b></div>
+                <div class="donut-legend-row"><span class="sw" style="background:#6E3F96;"></span>Prescriptions<b>2</b></div>
+                <div class="donut-legend-row"><span class="sw" style="background:#B4790E;"></span>Imaging<b>1</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel health-panel" style="margin-top:16px;">
+            <div class="panel-head"><h3 style="margin:0;">📈 Uploads Over Time</h3></div>
+            <svg viewBox="0 0 260 110" style="width:100%;height:110px;overflow:visible;">
+              <defs><linearGradient id="docTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2E6FA3" stop-opacity="0.25"/><stop offset="100%" stop-color="#2E6FA3" stop-opacity="0"/></linearGradient></defs>
+              <line x1="0" y1="88" x2="260" y2="88" stroke="#EEF4FA" stroke-width="1"/>
+              <path d="M10,80 60,70 110,75 160,50 210,55 250,25 L250,88 L10,88 Z" fill="url(#docTrendFill)" stroke="none"/>
+              <polyline points="10,80 60,70 110,75 160,50 210,55 250,25" fill="none" stroke="#2E6FA3" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="250" cy="25" r="4" fill="#2E6FA3" stroke="#fff" stroke-width="1.6"/>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 4px;">
+              <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end page-reports -->
+
+    <!-- ===================== MEDICINES PAGE ===================== -->
+    <div id="page-medicines" class="page" style="display:none;">
+      <div class="page-banner mint">
+        <div>
+          <h2>💊 Medicines</h2>
+          <p>Track today's doses, keep an eye on refills, and see how consistent you've been over the past week.</p>
+        </div>
+        <div class="page-stat-chip"><b id="adherencePctChip">86%</b><span>Weekly Adherence</span></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>🕐 Today's Schedule</h3><p>Tap "Take" as you go — it updates your adherence automatically</p></div></div>
+          <div id="medScheduleList">
+            <div class="med-schedule-row">
+              <div class="med-time-chip">8:00 AM</div>
+              <div class="info"><b>Ashwagandha Capsule</b><span>1 capsule · Stress &amp; Sleep course</span></div>
+              <button class="med-take-btn taken" onclick="toggleDose(this)">Taken</button>
+            </div>
+            <div class="med-schedule-row">
+              <div class="med-time-chip">9:00 AM</div>
+              <div class="info"><b>Vitamin D3 60K</b><span>1 tablet · Weekly · with breakfast</span></div>
+              <button class="med-take-btn taken" onclick="toggleDose(this)">Taken</button>
+            </div>
+            <div class="med-schedule-row">
+              <div class="med-time-chip">2:00 PM</div>
+              <div class="info"><b>Digestive Churna</b><span>1 tsp · after lunch, with warm water</span></div>
+              <button class="med-take-btn" onclick="toggleDose(this)">Take</button>
+            </div>
+            <div class="med-schedule-row">
+              <div class="med-time-chip">8:00 PM</div>
+              <div class="info"><b>Digestive Churna</b><span>1 tsp · after dinner, with warm water</span></div>
+              <button class="med-take-btn" onclick="toggleDose(this)">Take</button>
+            </div>
+            <div class="med-schedule-row">
+              <div class="med-time-chip">10:00 PM</div>
+              <div class="info"><b>Ashwagandha Capsule</b><span>1 capsule · before bed</span></div>
+              <button class="med-take-btn" onclick="toggleDose(this)">Take</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel readiness-card">
+          <div class="panel-head" style="justify-content:flex-start;gap:8px;"><div class="qa-icon" style="width:32px;height:32px;background:var(--mint);">📊</div><h3 style="margin:0;">Today's Progress</h3></div>
+          <div class="ring-wrap" id="doseRingWrap">
+            <svg viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="48" stroke="#EAF7EF" stroke-width="10" fill="none"/>
+              <circle cx="55" cy="55" r="48" stroke="#0E7C4A" stroke-width="10" fill="none" id="doseRingProgress"
+                stroke-dasharray="301.6" stroke-dashoffset="120.6" stroke-linecap="round"/>
+            </svg>
+            <div class="ring-pct" id="doseRingPct">2/5</div>
+          </div>
+          <p style="font-size:11.5px;color:var(--muted);margin:6px 0 14px;">doses taken today</p>
+          <button class="sub-btn solid" onclick="pop(this); toast('Refill request sent to pharmacy')">Request Refill</button>
+        </div>
+      </div>
+
+      <p class="section-label" style="color:var(--green-dark);margin-top:6px;">📆 Weekly Adherence <span style="font-weight:500;color:var(--muted);font-size:10.5px;">· last 7 days</span></p>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="week-adherence" id="weekAdherence">
+          <div class="wa-day"><span class="lbl">Mon</span><div class="wa-bar-track"><div class="wa-bar-fill" style="height:100%;"></div></div><span class="wa-pct">100%</span></div>
+          <div class="wa-day"><span class="lbl">Tue</span><div class="wa-bar-track"><div class="wa-bar-fill" style="height:100%;"></div></div><span class="wa-pct">100%</span></div>
+          <div class="wa-day"><span class="lbl">Wed</span><div class="wa-bar-track"><div class="wa-bar-fill missed" style="height:60%;"></div></div><span class="wa-pct">60%</span></div>
+          <div class="wa-day"><span class="lbl">Thu</span><div class="wa-bar-track"><div class="wa-bar-fill" style="height:100%;"></div></div><span class="wa-pct">100%</span></div>
+          <div class="wa-day"><span class="lbl">Fri</span><div class="wa-bar-track"><div class="wa-bar-fill" style="height:80%;"></div></div><span class="wa-pct">80%</span></div>
+          <div class="wa-day"><span class="lbl">Sat</span><div class="wa-bar-track"><div class="wa-bar-fill" style="height:100%;"></div></div><span class="wa-pct">100%</span></div>
+          <div class="wa-day"><span class="lbl">Sun</span><div class="wa-bar-track"><div class="wa-bar-fill" style="height:40%;"></div></div><span class="wa-pct">40%</span></div>
+        </div>
+      </div>
+
+      <p class="section-label" style="color:var(--green-dark);">💊 Active Medicines</p>
+      <div class="sub-grid">
+        <div class="med-card">
+          <div class="med-card-top"><div class="med-card-ic">🌿</div><div><b>Ashwagandha Capsule</b><span class="meta">Twice daily · 9 of 14 days left</span></div></div>
+          <div class="med-stock-track"><div class="med-stock-fill" style="width:64%;"></div></div>
+          <span style="font-size:10.5px;color:var(--muted);">9 capsules remaining</span>
+        </div>
+        <div class="med-card">
+          <div class="med-card-top"><div class="med-card-ic">☀️</div><div><b>Vitamin D3 60K</b><span class="meta">Weekly · 3 of 8 doses left</span></div></div>
+          <div class="med-stock-track"><div class="med-stock-fill" style="width:38%;"></div></div>
+          <span style="font-size:10.5px;color:var(--muted);">3 tablets remaining</span>
+        </div>
+        <div class="med-card">
+          <div class="med-card-top"><div class="med-card-ic">🍵</div><div><b>Digestive Churna</b><span class="meta">Twice daily · low stock</span></div></div>
+          <div class="med-stock-track"><div class="med-stock-fill low" style="width:15%;"></div></div>
+          <span style="font-size:10.5px;color:var(--warn);font-weight:700;">Only 3 doses left — refill soon</span>
+        </div>
+      </div>
+
+      <p class="section-label" style="color:var(--green-dark);" id="dietSection">🥗 Diet &amp; Nutrition <span style="font-weight:500;color:var(--muted);font-size:10.5px;">· personalized for your Acidity &amp; Sleep Management plan</span></p>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><div><h3>Food Guidance</h3><p>Tap an item to mark it as followed / avoided today</p></div></div>
+        <div class="sub-tabs" id="dietTabs">
+          <div class="sub-tab active" onclick="goDietTab(this,'recommended')">✅ Recommended</div>
+          <div class="sub-tab" onclick="goDietTab(this,'restricted')">🚫 Restricted</div>
+        </div>
+
+        <div class="tab-panel show" id="dietPanel-recommended">
+          <div class="chip-select" id="dietRecommendedChips">
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">🥣 Warm soups &amp; stews</span>
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">🥥 Coconut water</span>
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">🥦 Steamed vegetables</span>
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">🥛 Buttermilk (chaas)</span>
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">🍌 Ripe bananas</span>
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">🌾 Oats &amp; whole grains</span>
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">🍚 Warm, freshly cooked meals</span>
+            <span class="sel-chip diet-chip" onclick="toggleDietChip(this)">💧 8–10 glasses of water</span>
+          </div>
+          <p class="diet-note" id="dietRecNote">Tap items you followed today to track your plan.</p>
+        </div>
+
+        <div class="tab-panel" id="dietPanel-restricted">
+          <div class="chip-select" id="dietRestrictedChips">
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">🌶️ Spicy food</span>
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">🍟 Fried &amp; oily food</span>
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">☕ Caffeine after 4 PM</span>
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">🥤 Carbonated drinks</span>
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">🥩 Red / heavy meat</span>
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">🌙 Late-night meals</span>
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">🍰 Refined sugar &amp; sweets</span>
+            <span class="sel-chip diet-chip chip-restrict" onclick="toggleDietChip(this)">🚬 Alcohol &amp; smoking</span>
+          </div>
+          <p class="diet-note" id="dietResNote">Tap items you avoided today to track your plan.</p>
+        </div>
+      </div>
+    </div>
+    <!-- end page-medicines -->
+
+    <!-- ===================== MESSAGES PAGE ===================== -->
+    <div id="page-messages" class="page" style="display:none;">
+      <div class="page-banner mint">
+        <div><h2>💬 Messages</h2><p>Secure messages with your care team — reports and case updates are shared here.</p></div>
+      </div>
+      <div class="chat-layout">
+        <div class="conv-list" id="convList">
+          <div class="conv-item active" onclick="openConv(this,'meera')">
+            <div class="conv-avatar">MS</div>
+            <div class="txt"><b>Dr. Meera Sharma</b><span>Great, see you at your next visit!</span></div>
+            <div class="conv-meta"><span class="t">10:24 AM</span><span class="conv-unread">2</span></div>
+          </div>
+          <div class="conv-item" onclick="openConv(this,'rohan')">
+            <div class="conv-avatar">RP</div>
+            <div class="txt"><b>Dr. Rohan Patel</b><span>Your Vitamin D levels are improving.</span></div>
+            <div class="conv-meta"><span class="t">Yesterday</span></div>
+          </div>
+          <div class="conv-item" onclick="openConv(this,'support')">
+            <div class="conv-avatar" style="background:var(--sky-blue);">SS</div>
+            <div class="txt"><b>Swasthya Setu Support</b><span>Your appointment is confirmed ✅</span></div>
+            <div class="conv-meta"><span class="t">Mon</span></div>
+          </div>
+        </div>
+        <div class="chat-window">
+          <div class="chat-header"><div class="conv-avatar" id="chatHeaderAvatar">MS</div><div><b id="chatHeaderName">Dr. Meera Sharma</b><span id="chatHeaderStatus">General Physician · Ayurveda</span></div></div>
+          <div class="chat-body" id="chatBody">
+            <div class="msg-row"><div><div class="msg-bubble">Hi Ramesh, I've reviewed your latest blood test report. Your Vitamin D is trending up nicely.</div><span class="msg-time">10:12 AM</span></div></div>
+            <div class="msg-row me"><div><div class="msg-bubble">That's great to hear! Should I continue the same dosage?</div><span class="msg-time">10:15 AM</span></div></div>
+            <div class="msg-row"><div><div class="msg-bubble">Yes, continue for 3 more weeks. Also keep up with the acidity plan — it's clearly helping.</div><span class="msg-time">10:20 AM</span></div></div>
+            <div class="msg-row"><div><div class="msg-bubble">Great, see you at your next visit!</div><span class="msg-time">10:24 AM</span></div></div>
+          </div>
+          <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendMsg()">
+            <button class="chat-send-btn" onclick="sendMsg()">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end page-messages -->
+
+    <!-- ===================== SETTINGS PAGE ===================== -->
+    <div id="page-settings" class="page" style="display:none;">
+      <div class="page-banner mint">
+        <div><h2>⚙️ Settings</h2><p>Manage your profile, notifications, privacy and linked health accounts.</p></div>
+      </div>
+      <div class="settings-layout">
+        <div class="settings-nav" id="settingsNav">
+          <div class="settings-nav-item active" onclick="goSettingsTab(this,'profile')">👤 Profile</div>
+          <div class="settings-nav-item" onclick="goSettingsTab(this,'notifications')">🔔 Notifications</div>
+          <div class="settings-nav-item" onclick="goSettingsTab(this,'privacy')">🔒 Privacy &amp; Data</div>
+          <div class="settings-nav-item" onclick="goSettingsTab(this,'language')">🌐 Language &amp; Region</div>
+          <div class="settings-nav-item" onclick="goSettingsTab(this,'linked')">🔗 Linked Accounts</div>
+        </div>
+
+        <div>
+          <div class="panel tab-panel show" id="settingsPanel-profile">
+            <div class="panel-head"><h3>Profile Details</h3></div>
+            <div class="field-grid">
+              <div class="field-block"><label>Full Name</label><input type="text" value="Ramesh Kumar"></div>
+              <div class="field-block"><label>Age</label><input type="number" value="32"></div>
+              <div class="field-block"><label>Phone</label><input type="text" value="+91 98765 43210"></div>
+              <div class="field-block"><label>Email</label><input type="text" value="ramesh.kumar@example.com"></div>
+              <div class="field-block"><label>Blood Group</label><select><option>O+</option><option>A+</option><option>B+</option><option>AB+</option></select></div>
+              <div class="field-block"><label>Preferred Health Center</label><select><option>BPIT Health Center</option><option>City Ayurveda Clinic</option></select></div>
+            </div>
+            <button class="sub-btn solid" style="width:auto;padding:10px 20px;" onclick="pop(this); toast('Profile saved')">Save Changes</button>
+          </div>
+
+          <div class="panel tab-panel" id="settingsPanel-notifications">
+            <div class="panel-head"><h3>Notification Preferences</h3></div>
+            <div class="toggle-row"><div><b>Appointment reminders</b><span>Get notified before upcoming visits</span></div><div class="toggle-switch on" onclick="flipToggle(this)"></div></div>
+            <div class="toggle-row"><div><b>Medicine reminders</b><span>Daily dose reminders on schedule</span></div><div class="toggle-switch on" onclick="flipToggle(this)"></div></div>
+            <div class="toggle-row"><div><b>Report updates</b><span>Alert me when a new report is analyzed</span></div><div class="toggle-switch on" onclick="flipToggle(this)"></div></div>
+            <div class="toggle-row"><div><b>Doctor messages</b><span>Notify me of new messages from my care team</span></div><div class="toggle-switch on" onclick="flipToggle(this)"></div></div>
+            <div class="toggle-row"><div><b>Wellness tips</b><span>Weekly AYUSH lifestyle suggestions</span></div><div class="toggle-switch" onclick="flipToggle(this)"></div></div>
+            <div class="toggle-row"><div><b>Promotional offers</b><span>Occasional offers from partner pharmacies</span></div><div class="toggle-switch" onclick="flipToggle(this)"></div></div>
+          </div>
+
+          <div class="panel tab-panel" id="settingsPanel-privacy">
+            <div class="panel-head"><h3>Privacy &amp; Data</h3></div>
+            <div class="toggle-row"><div><b>Share data with my doctors</b><span>Lets assigned doctors view your full case history</span></div><div class="toggle-switch on" onclick="flipToggle(this)"></div></div>
+            <div class="toggle-row"><div><b>Anonymous research contribution</b><span>Help improve AYUSH care models (no personal data shared)</span></div><div class="toggle-switch" onclick="flipToggle(this)"></div></div>
+            <div class="toggle-row"><div><b>Two-factor authentication</b><span>Extra security step when signing in</span></div><div class="toggle-switch on" onclick="flipToggle(this)"></div></div>
+            <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+              <button class="sub-btn" style="width:auto;padding:9px 18px;" onclick="toast('Preparing your data export…')">⬇ Download My Data</button>
+              <button class="sub-btn" style="width:auto;padding:9px 18px;color:#C0432E;border-color:#F3D3CC;" onclick="toast('Please contact support to delete your account')">Delete Account</button>
+            </div>
+          </div>
+
+          <div class="panel tab-panel" id="settingsPanel-language">
+            <div class="panel-head"><h3>Language &amp; Region</h3></div>
+            <div class="field-block" style="max-width:320px;"><label>Region</label><select><option>India</option><option>Other</option></select></div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--green-dark);">App Language</label>
+            <div class="lang-chip-row">
+              <span class="lang-chip on" onclick="pickLang(this)">English</span>
+              <span class="lang-chip" onclick="pickLang(this)">हिंदी</span>
+              <span class="lang-chip" onclick="pickLang(this)">मराठी</span>
+              <span class="lang-chip" onclick="pickLang(this)">தமிழ்</span>
+              <span class="lang-chip" onclick="pickLang(this)">తెలుగు</span>
+              <span class="lang-chip" onclick="pickLang(this)">বাংলা</span>
+            </div>
+          </div>
+
+          <div class="panel tab-panel" id="settingsPanel-linked">
+            <div class="panel-head"><h3>Linked Accounts</h3></div>
+            <div class="linked-card"><div class="ic">🪪</div><div><b>ABHA Health ID</b><span>Linked · 14-2345-6789-0123</span></div><span class="status"><button class="linked-btn connected" onclick="toast('ABHA already linked')">Connected</button></span></div>
+            <div class="linked-card"><div class="ic">🛡️</div><div><b>Health Insurance</b><span>Star Health · Policy ending 4471</span></div><span class="status"><button class="linked-btn connected" onclick="toast('Opening insurance details')">Connected</button></span></div>
+            <div class="linked-card"><div class="ic">👨‍👩‍👧</div><div><b>Family Members</b><span>2 members linked to this account</span></div><span class="status"><button class="linked-btn" onclick="toast('Opening family linking')">+ Add Member</button></span></div>
+            <div class="linked-card"><div class="ic">⌚</div><div><b>Fitness Tracker</b><span>Not connected</span></div><span class="status"><button class="linked-btn" onclick="toast('Opening device pairing')">Connect</button></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end page-settings -->
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.__t);
+    window.__t = setTimeout(()=>t.classList.remove('show'), 1700);
+  }
+  function pop(el){
+    el.classList.remove('popped');
+    void el.offsetWidth;
+    el.style.transform='scale(0.97)';
+    setTimeout(()=> el.style.transform='', 150);
+  }
+  function setActive(el){
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+  }
+  const ALL_PAGES = ['home','health','ai','reports','medicines','messages','settings'];
+  function showPage(name){
+    ALL_PAGES.forEach(p => {
+      const el = document.getElementById('page-' + p);
+      if(el) el.style.display = (p === name) ? 'block' : 'none';
+    });
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  // Central navigation: switches the page AND keeps the sidebar highlight in sync,
+  // so every link/card/button in the app can jump straight to the right section.
+  function navigate(name){
+    showPage(name);
+    document.querySelectorAll('.sidebar .nav-item').forEach(n => n.classList.remove('active'));
+    const target = document.querySelector('.sidebar .nav-item[data-page="' + name + '"]');
+    if(target) target.classList.add('active');
+  }
+  function navigateAndScroll(name, elId){
+    navigate(name);
+    setTimeout(() => {
+      const el = document.getElementById(elId);
+      if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+    }, 60);
+  }
+  function navigateAiStep(step){
+    navigate('ai');
+    setTimeout(() => goAiStep(step), 60);
+  }
+  function playLogoFlip(){
+    const g = document.getElementById('logoLeafGroup');
+    if(!g) return;
+    g.classList.remove('leaf-flip');
+    void g.offsetWidth;
+    g.classList.add('leaf-flip');
+    setTimeout(() => g.classList.remove('leaf-flip'), 650);
+  }
+  function refreshHealth(){
+    const btn = document.getElementById('refreshBtn');
+    btn.classList.add('spinning');
+    toast('Checking for updates…');
+    setTimeout(()=>{
+      btn.classList.remove('spinning');
+      document.getElementById('lastSynced').textContent = 'Last checked just now';
+      toast('You\'re up to date');
+    }, 800);
+  }
+  function sendToAI(){
+    const val = document.getElementById('aiInput').value.trim();
+    toast(val ? 'AI: analyzing "'+val+'"…' : 'Please describe your symptoms first');
+  }
+
+  const trendData = {
+    weight: { points:[10,60, 50,52, 90,56, 130,40, 170,44, 210,26, 250,32], val:62, unit:'kg' },
+    sleep:  { points:[10,80, 50,70, 90,74, 130,50, 170,46, 210,58, 250,40], val:6.8, unit:'hrs' },
+    steps:  { points:[10,88, 50,70, 90,60, 130,66, 170,42, 210,50, 250,30], val:7842, unit:'steps' },
+    heart:  { points:[10,50, 50,58, 90,46, 130,52, 170,40, 210,48, 250,44], val:76, unit:'bpm' }
+  };
+  function setTrend(el, key){
+    document.querySelectorAll('.trend-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    const d = trendData[key];
+    const pts = d.points;
+    let polyStr = '', dotsHTML = '';
+    for(let i=0; i<pts.length; i+=2){
+      polyStr += pts[i] + ',' + pts[i+1] + ' ';
+      const isLast = i === pts.length - 2;
+      dotsHTML += '<circle cx="'+pts[i]+'" cy="'+pts[i+1]+'" r="'+(isLast?4.4:3.2)+'"' + (isLast?' stroke="#fff" stroke-width="2"':'') + '/>';
+    }
+    document.getElementById('trendLine').setAttribute('points', polyStr.trim());
+    document.getElementById('trendArea').setAttribute('d', polyStr.trim().split(' ').join(' ') + ' L ' + pts[pts.length-2] + ',98 L ' + pts[0] + ',98 Z');
+    document.getElementById('trendDots').innerHTML = dotsHTML;
+    document.getElementById('trendVal').textContent = d.val;
+    document.getElementById('trendUnit').textContent = d.unit;
+  }
+
+  /* ===================== MY HEALTH — professional charts ===================== */
+
+  // Smooth Catmull-Rom-to-Bezier path builder, used for every curve on the Health page
+  function smoothPath(pts){
+    if(pts.length < 2) return '';
+    let d = 'M ' + pts[0][0] + ',' + pts[0][1];
+    for(let i = 0; i < pts.length - 1; i++){
+      const p0 = pts[i - 1] || pts[i];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ' C ' + c1x + ',' + c1y + ' ' + c2x + ',' + c2y + ' ' + p2[0] + ',' + p2[1];
+    }
+    return d;
+  }
+
+  const healthTrendData = {
+    weight: { values:[64, 63.5, 63, 62.7, 62.4, 62.2, 62],           unit:'kg',      good:'down', decimals:1, desc:'Tracking your weight over the last 6 weeks. A steady downward line here is a good sign.' },
+    bp:     { values:[138, 136, 134, 132, 130, 129, 128],            unit:'/ 82 mmHg', good:'down', decimals:0, desc:'Your systolic blood pressure over the last 6 weeks. Lower and steadier is healthier.' },
+    sugar:  { values:[142, 138, 135, 130, 126, 122, 118],            unit:'mg/dL',   good:'down', decimals:0, desc:'Your fasting blood sugar over the last 6 weeks. It should ideally stay under 100 mg/dL.' },
+    heart:  { values:[82, 80, 79, 77, 76, 75, 74],                   unit:'bpm',     good:'down', decimals:0, desc:'Your resting heart rate over the last 6 weeks. A lower, stable rate reflects better fitness.' },
+    sleep:  { values:[5.0, 5.4, 5.8, 6.0, 6.3, 6.6, 6.8],            unit:'hrs avg', good:'up',   decimals:1, desc:'Your average nightly sleep over the last 6 weeks. Aim for 7–8 hours for full recovery.' },
+    steps:  { values:[4200, 4800, 5100, 5600, 6200, 7000, 7842],     unit:'steps/day', good:'up', decimals:0, desc:'Your average daily steps over the last 6 weeks. More movement, more consistently, is better.' }
+  };
+  const heroXs = [30, 121.7, 213.3, 305, 396.7, 488.3, 580];
+
+  function activateHealthTab(key){
+    const tab = document.querySelector('.trend-hero-tabs .trend-tab[data-key="' + key + '"]');
+    if(tab) setHealthTrend(tab, key);
+    const panel = document.getElementById('trendHeroPanel');
+    if(panel) panel.scrollIntoView({ behavior:'smooth', block:'center' });
+  }
+
+  function setHealthTrend(el, key){
+    document.querySelectorAll('.trend-hero-tabs .trend-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+
+    const d = healthTrendData[key];
+    const vals = d.values;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const pad = (max - min) * 0.3 || Math.max(max * 0.08, 1);
+    const top = max + pad, bottom = Math.max(min - pad, 0);
+
+    const yFor = v => 205 - ((v - bottom) / (top - bottom)) * 180;
+    const pts = vals.map((v, i) => [heroXs[i], yFor(v)]);
+    const linePath = smoothPath(pts);
+    const areaPath = linePath + ' L 580,205 L 30,205 Z';
+
+    document.getElementById('heroLine').setAttribute('d', linePath);
+    document.getElementById('heroArea').setAttribute('d', areaPath);
+    document.getElementById('heroDots').innerHTML = pts.map((p, i) =>
+      '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (i === pts.length - 1 ? 5.5 : 3.2) + '"' +
+      (i === pts.length - 1 ? ' stroke="#fff" stroke-width="2"' : '') + '/>'
+    ).join('');
+
+    const fmt = n => d.decimals ? n.toFixed(d.decimals) : Math.round(n);
+    document.getElementById('heroValNum').textContent = fmt(vals[vals.length - 1]);
+    document.getElementById('heroUnit').textContent = ' ' + d.unit;
+    document.getElementById('heroMaxLbl').textContent = fmt(top);
+    document.getElementById('heroMidLbl').textContent = fmt((top + bottom) / 2);
+    document.getElementById('heroMinLbl').textContent = fmt(bottom);
+
+    const change = vals[vals.length - 1] - vals[0];
+    const isGood = (d.good === 'down' && change <= 0) || (d.good === 'up' && change >= 0);
+    const arrow = change === 0 ? '→' : (change < 0 ? '▼' : '▲');
+    const cleanUnit = d.unit.replace('/ ', '').replace(' avg', '').replace('/day', ' a day');
+    const deltaEl = document.getElementById('heroDelta');
+    if(change === 0){
+      deltaEl.textContent = '→ Holding steady since 6 weeks ago';
+    } else {
+      const direction = change < 0 ? 'lower' : 'higher';
+      deltaEl.textContent = arrow + ' ' + fmt(Math.abs(change)) + ' ' + cleanUnit + ' ' + direction + ' than 6 weeks ago';
+    }
+    deltaEl.className = 'delta ' + (isGood ? 'good' : 'bad');
+    document.getElementById('heroDescription').textContent = d.desc;
+  }
+
+  function renderWellnessChart(){
+    const scores = [58, 64, 68, 62, 74, 80, 82];
+    const xs = [34, 80, 126, 172, 218, 264, 306];
+    const yFor = s => 145 - ((s - 30) / 70) * 122;
+    const pts = scores.map((s, i) => [xs[i], yFor(s)]);
+    const linePath = smoothPath(pts);
+    const areaPath = linePath + ' L 306,145 L 34,145 Z';
+    document.getElementById('wellLine').setAttribute('d', linePath);
+    document.getElementById('wellArea').setAttribute('d', areaPath);
+    document.getElementById('wellDots').innerHTML = pts.map((p, i) =>
+      '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (i === pts.length - 1 ? 4.6 : 3) + '"' +
+      (i === pts.length - 1 ? ' stroke="#fff" stroke-width="2"' : '') + '/>'
+    ).join('');
+    document.getElementById('wellCurrentBadge').textContent = scores[scores.length - 1];
+  }
+
+  renderWellnessChart();
+  setHealthTrend(document.querySelector('.trend-hero-tabs .trend-tab[data-key="weight"]'), 'weight');
+
+  /* ===================== BMI: units, age, gender, body dummy ===================== */
+  const bmiState = { heightUnit:'cm', weightUnit:'kg', gender:'male' };
+
+  function setHeightUnit(unit){
+    bmiState.heightUnit = unit;
+    document.getElementById('unitHeightCm').classList.toggle('active', unit==='cm');
+    document.getElementById('unitHeightFt').classList.toggle('active', unit==='ft');
+    const cmInput = document.getElementById('inputHeight');
+    const ftRow = document.getElementById('heightFtInRow');
+    if(unit === 'ft'){
+      cmInput.style.display = 'none';
+      ftRow.style.display = 'grid';
+      const cm = parseFloat(cmInput.value) || 170;
+      const totalIn = cm / 2.54;
+      document.getElementById('inputHeightFt').value = Math.floor(totalIn / 12);
+      document.getElementById('inputHeightIn').value = Math.round(totalIn % 12);
+    } else {
+      cmInput.style.display = 'block';
+      ftRow.style.display = 'none';
+    }
+    calcBMI();
+  }
+
+  function syncFtIn(){
+    const ft = parseFloat(document.getElementById('inputHeightFt').value) || 0;
+    const inch = parseFloat(document.getElementById('inputHeightIn').value) || 0;
+    const cm = (ft * 12 + inch) * 2.54;
+    document.getElementById('inputHeight').value = cm.toFixed(1);
+    calcBMI();
+  }
+
+  function setWeightUnit(unit){
+    const wInput = document.getElementById('inputWeight');
+    const current = parseFloat(wInput.value) || 0;
+    if(unit === bmiState.weightUnit) return;
+    // convert the displayed value so the field always matches the selected unit
+    if(unit === 'lb') wInput.value = (current * 2.20462).toFixed(1);
+    else wInput.value = (current / 2.20462).toFixed(1);
+    bmiState.weightUnit = unit;
+    document.getElementById('unitWeightKg').classList.toggle('active', unit==='kg');
+    document.getElementById('unitWeightLb').classList.toggle('active', unit==='lb');
+    calcBMI();
+  }
+
+  function setGender(g){
+    bmiState.gender = g;
+    document.getElementById('genderMaleBtn').classList.toggle('active', g==='male');
+    document.getElementById('genderFemaleBtn').classList.toggle('active', g==='female');
+    document.getElementById('bodyMale').style.display = g === 'male' ? 'inline' : 'none';
+    document.getElementById('bodyFemale').style.display = g === 'female' ? 'inline' : 'none';
+    calcBMI();
+  }
+
+  function updateBodyFigure(heightCm, weightKg, bmi){
+    // Height: scale vertically around an average adult reference of 170cm
+    const scaleY = Math.max(0.72, Math.min(1.22, heightCm / 170));
+    // Width: scale horizontally based on BMI so the silhouette visibly widens/narrows
+    const scaleX = Math.max(0.76, Math.min(1.5, 0.86 + (bmi - 21.5) * 0.032));
+    document.getElementById('bodyScaleWrap').style.transform = 'scale(' + scaleX.toFixed(3) + ',' + scaleY.toFixed(3) + ')';
+    document.getElementById('figHeightLbl').textContent = heightCm.toFixed(0) + ' cm';
+    document.getElementById('figWeightLbl').textContent = weightKg.toFixed(1) + ' kg';
+  }
+
+  function calcBMI(){
+    // Always resolve to metric (cm / kg) internally, regardless of the units shown
+    let h = parseFloat(document.getElementById('inputHeight').value) || 0;
+    let w = parseFloat(document.getElementById('inputWeight').value) || 0;
+    const age = parseFloat(document.getElementById('inputAge').value) || 0;
+    if(h <= 0 || w <= 0) return;
+
+    const weightKg = bmiState.weightUnit === 'lb' ? w / 2.20462 : w;
+    const heightCm = h; // inputHeight is always kept in cm internally (ft/in syncs into it)
+
+    const bmi = weightKg / Math.pow(heightCm / 100, 2);
+    document.getElementById('bmiValue').textContent = bmi.toFixed(1);
+
+    let cat, cls, pct;
+    if(bmi < 18.5){ cat = 'Underweight'; cls = 'under'; pct = (bmi / 18.5) * 22; }
+    else if(bmi < 25){ cat = 'Normal'; cls = 'normal'; pct = 22 + ((bmi - 18.5) / 6.5) * 28; }
+    else if(bmi < 30){ cat = 'Overweight'; cls = 'over'; pct = 50 + ((bmi - 25) / 5) * 25; }
+    else { cat = 'Obese'; cls = 'obese'; pct = 75 + Math.min(((bmi - 30) / 10) * 25, 25); }
+    pct = Math.max(2, Math.min(98, pct));
+
+    const tag = document.getElementById('bmiTag');
+    tag.textContent = cat;
+    tag.className = 'bmi-tag ' + cls;
+    document.getElementById('bmiMarker').style.left = pct + '%';
+
+    const ageNote = document.getElementById('bmiAgeNote');
+    const noteEl = document.getElementById('bmiNote');
+    if(age > 0 && (age < 20 || age > 65)){
+      ageNote.classList.add('show');
+      noteEl.textContent = 'Your BMI (Body Mass Index), calculated from the values above for age ' + age + '.';
+    } else {
+      ageNote.classList.remove('show');
+      noteEl.textContent = 'Your BMI (Body Mass Index), calculated from the values above.';
+    }
+
+    updateBodyFigure(heightCm, weightKg, bmi);
+
+    // Keep the Weight card in Key Health Metrics in sync with the measurement above
+    const metricWeightEl = document.getElementById('metricWeightValue');
+    if(metricWeightEl){
+      metricWeightEl.textContent = (Math.round(weightKg * 10) / 10).toString().replace(/\.0$/, '');
+    }
+  }
+  calcBMI();
+
+  /* ===================== AI CASE TAKING ===================== */
+  const aiState = { symptoms: [], reports: [], medicines: [], severity: 4 };
+  const RING_CIRC = 301.6;
+
+  function goAiStep(step){
+    document.querySelectorAll('#aiStepTabs .sub-tab').forEach(t => t.classList.remove('active'));
+    const tab = document.querySelector('#aiStepTabs .sub-tab[data-step="' + step + '"]');
+    if(tab) tab.classList.add('active');
+    document.querySelectorAll('#page-ai .tab-panel').forEach(p => p.classList.remove('show'));
+    document.getElementById('aiPanel-' + step).classList.add('show');
+    // mark earlier steps as done
+    const order = ['symptoms','reports','medicines','review'];
+    const idx = order.indexOf(step);
+    order.forEach((s,i) => {
+      const t = document.querySelector('#aiStepTabs .sub-tab[data-step="' + s + '"]');
+      if(t) t.classList.toggle('done', i < idx);
+    });
+    if(step === 'review') renderReview();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function toggleChip(el, kind){
+    el.classList.toggle('on');
+    if(kind === 'symptom'){
+      const label = el.textContent.trim();
+      const i = aiState.symptoms.indexOf(label);
+      if(i === -1) aiState.symptoms.push(label); else aiState.symptoms.splice(i,1);
+      renderSeverityBars();
+    }
+    updateReadiness();
+  }
+
+  function updateSeverity(){
+    const val = parseInt(document.getElementById('sevSlider').value, 10);
+    aiState.severity = val;
+    const badge = document.getElementById('sevBadge');
+    let label = 'Mild', cls = '';
+    if(val >= 7){ label = 'Severe'; cls = 'high'; }
+    else if(val >= 4){ label = 'Moderate'; cls = 'mod'; }
+    badge.textContent = label + ' · ' + val + '/10';
+    badge.className = 'sev-badge ' + cls;
+    updateReadiness();
+  }
+
+  function mockUpload(){
+    const names = ['Lab_Report_Recent.pdf','Prescription_Scan.jpg','X-Ray_Chest.pdf','Blood_Panel.pdf'];
+    const name = names[aiState.reports.length % names.length];
+    aiState.reports.push(name);
+    renderUploadList();
+    toast('Uploaded ' + name);
+    updateReadiness();
+  }
+  function renderUploadList(){
+    const wrap = document.getElementById('aiUploadList');
+    if(aiState.reports.length === 0){
+      wrap.innerHTML = '<div class="empty-hint">No reports added yet — uploaded files will appear here.</div>';
+      return;
+    }
+    wrap.innerHTML = aiState.reports.map((name, i) =>
+      '<div class="report-row"><div class="report-icon">📄</div><div><b>' + name + '</b><span>Uploaded just now · Analyzing…</span></div>' +
+      '<div class="dl-btn" onclick="removeReport(' + i + ')" title="Remove">✕</div></div>'
+    ).join('');
+  }
+  function removeReport(i){
+    aiState.reports.splice(i,1);
+    renderUploadList();
+    updateReadiness();
+  }
+
+  function addMedicine(){
+    const name = document.getElementById('medNameInput').value.trim();
+    const dose = document.getElementById('medDoseInput').value.trim();
+    const freq = document.getElementById('medFreqInput').value;
+    if(!name){ toast('Please enter a medicine name'); return; }
+    aiState.medicines.push({ name, dose: dose || '—', freq });
+    document.getElementById('medNameInput').value = '';
+    document.getElementById('medDoseInput').value = '';
+    renderMedList();
+    updateReadiness();
+  }
+  function renderMedList(){
+    const wrap = document.getElementById('aiMedList');
+    if(aiState.medicines.length === 0){
+      wrap.innerHTML = '<div class="empty-hint">No medicines added yet.</div>';
+      return;
+    }
+    wrap.innerHTML = aiState.medicines.map((m,i) =>
+      '<span class="added-chip">💊 ' + m.name + ' · ' + m.dose + ' · ' + m.freq + '<span class="x" onclick="removeMedicine(' + i + ')">✕</span></span>'
+    ).join('');
+  }
+  function removeMedicine(i){
+    aiState.medicines.splice(i,1);
+    renderMedList();
+    updateReadiness();
+  }
+
+  function renderSeverityBars(){
+    const wrap = document.getElementById('severityBars');
+    if(aiState.symptoms.length === 0){
+      wrap.innerHTML = '<div class="empty-hint">Select symptoms in Step 1 to see this chart.</div>';
+      return;
+    }
+    wrap.innerHTML = aiState.symptoms.map(s => {
+      const pct = Math.min(100, Math.round((aiState.severity / 10) * 100 * (0.7 + Math.random()*0.3)));
+      return '<div class="sbar-row"><span>' + s + '</span><div class="sbar-track"><div class="sbar-fill" style="width:' + pct + '%;"></div></div><span>' + pct + '%</span></div>';
+    }).join('');
+  }
+
+  function updateReadiness(){
+    let score = 10; // base
+    if(aiState.symptoms.length > 0) score += 25;
+    if(document.getElementById('aiInput') && document.getElementById('aiInput').value.trim().length > 5) score += 15;
+    score += 5; // severity always rated (slider has default)
+    if(aiState.reports.length > 0) score += 25;
+    if(aiState.medicines.length > 0) score += 20;
+    score = Math.min(100, score);
+
+    document.getElementById('aiReadyPct').textContent = score + '%';
+    document.getElementById('aiRingPct').textContent = score + '%';
+    const offset = RING_CIRC - (RING_CIRC * score / 100);
+    document.getElementById('aiRingProgress').style.strokeDashoffset = offset;
+
+    setCheck('ck-symptoms', aiState.symptoms.length > 0);
+    setCheck('ck-severity', true);
+    setCheck('ck-reports', aiState.reports.length > 0);
+    setCheck('ck-medicines', aiState.medicines.length > 0);
+  }
+  function setCheck(id, done){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.toggle('warn', !done);
+    el.querySelector('.cmark').textContent = done ? '✅' : '⚠️';
+  }
+
+  function renderReview(){
+    document.getElementById('reviewSymptomCount').textContent = aiState.symptoms.length;
+    document.getElementById('reviewReportCount').textContent = aiState.reports.length;
+    document.getElementById('reviewMedCount').textContent = aiState.medicines.length;
+    const chipsWrap = document.getElementById('reviewSymptomChips');
+    chipsWrap.innerHTML = aiState.symptoms.length
+      ? aiState.symptoms.map(s => '<span class="sel-chip on">' + s + '</span>').join('')
+      : '<span class="empty-hint">Nothing selected yet — go back to Step 1.</span>';
+  }
+
+  function submitCase(){
+    toast('Case sent to your doctor ✅');
+    setTimeout(()=> showPage('home'), 900);
+  }
+
+  /* ===================== REPORTS & DOCUMENTS ===================== */
+  function filterDocs(el, cat){
+    document.querySelectorAll('#docFilterTabs .doc-filter').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('#docGrid .doc-card').forEach(card => {
+      const show = (cat === 'all') || (card.dataset.cat === cat);
+      card.style.display = show ? 'block' : 'none';
+    });
+  }
+  function toggleDoc(card){
+    card.classList.toggle('expanded');
+    card.querySelector('.doc-detail').classList.toggle('show');
+  }
+  function mockUploadReport(){
+    toast('Uploading document… analyzing with AI');
+  }
+
+  /* ===================== MEDICINES ===================== */
+  function toggleDose(btn){
+    btn.classList.toggle('taken');
+    btn.textContent = btn.classList.contains('taken') ? 'Taken' : 'Take';
+    updateDoseRing();
+  }
+  function updateDoseRing(){
+    const all = document.querySelectorAll('#medScheduleList .med-take-btn');
+    const taken = document.querySelectorAll('#medScheduleList .med-take-btn.taken').length;
+    const pct = Math.round((taken / all.length) * 100);
+    document.getElementById('doseRingPct').textContent = taken + '/' + all.length;
+    document.getElementById('doseRingProgress').style.strokeDashoffset = RING_CIRC - (RING_CIRC * pct / 100);
+  }
+
+  /* ===================== MESSAGES ===================== */
+  const convData = {
+    meera: { name:'Dr. Meera Sharma', status:'General Physician · Ayurveda', avatar:'MS', color:'var(--green-primary)',
+      msgs:[
+        {me:false, text:"Hi Ramesh, I've reviewed your latest blood test report. Your Vitamin D is trending up nicely.", time:'10:12 AM'},
+        {me:true, text:"That's great to hear! Should I continue the same dosage?", time:'10:15 AM'},
+        {me:false, text:"Yes, continue for 3 more weeks. Also keep up with the acidity plan — it's clearly helping.", time:'10:20 AM'},
+        {me:false, text:'Great, see you at your next visit!', time:'10:24 AM'}
+      ]},
+    rohan: { name:'Dr. Rohan Patel', status:'General Physician', avatar:'RP', color:'var(--green-primary)',
+      msgs:[
+        {me:false, text:'Your Vitamin D levels are improving. Keep taking the supplement as prescribed.', time:'Yesterday'},
+        {me:true, text:'Thank you doctor, will do!', time:'Yesterday'}
+      ]},
+    support: { name:'Swasthya Setu Support', status:'Care coordination team', avatar:'SS', color:'var(--sky-blue)',
+      msgs:[
+        {me:false, text:'Your appointment with Dr. Meera Sharma on 12 Jun, 10:30 AM is confirmed ✅', time:'Mon'}
+      ]}
+  };
+  let activeConv = 'meera';
+  function openConv(el, key){
+    document.querySelectorAll('#convList .conv-item').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    const badge = el.querySelector('.conv-unread');
+    if(badge) badge.remove();
+    activeConv = key;
+    const d = convData[key];
+    document.getElementById('chatHeaderAvatar').textContent = d.avatar;
+    document.getElementById('chatHeaderAvatar').style.background = d.color;
+    document.getElementById('chatHeaderName').textContent = d.name;
+    document.getElementById('chatHeaderStatus').textContent = d.status;
+    renderChat();
+  }
+  function renderChat(){
+    const body = document.getElementById('chatBody');
+    const d = convData[activeConv];
+    body.innerHTML = d.msgs.map(m =>
+      '<div class="msg-row' + (m.me ? ' me' : '') + '"><div><div class="msg-bubble">' + m.text + '</div><span class="msg-time">' + m.time + '</span></div></div>'
+    ).join('');
+    body.scrollTop = body.scrollHeight;
+  }
+  function sendMsg(){
+    const input = document.getElementById('chatInput');
+    const val = input.value.trim();
+    if(!val) return;
+    convData[activeConv].msgs.push({ me:true, text: val, time:'Just now' });
+    input.value = '';
+    renderChat();
+    setTimeout(() => {
+      convData[activeConv].msgs.push({ me:false, text: "Thanks for the update — I'll take a look and get back to you shortly.", time:'Just now' });
+      renderChat();
+    }, 1100);
+  }
+
+  /* ===================== SETTINGS ===================== */
+  function goSettingsTab(el, key){
+    document.querySelectorAll('#settingsNav .settings-nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('#page-settings .tab-panel').forEach(p => p.classList.remove('show'));
+    document.getElementById('settingsPanel-' + key).classList.add('show');
+  }
+  function flipToggle(el){
+    el.classList.toggle('on');
+  }
+  function pickLang(el){
+    document.querySelectorAll('.lang-chip').forEach(c => c.classList.remove('on'));
+    el.classList.add('on');
+    toast('Language set to ' + el.textContent.trim());
+  }
+
+  /* ===================== DIET & NUTRITION ===================== */
+  function goDietTab(el, key){
+    document.querySelectorAll('#dietTabs .sub-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('dietPanel-recommended').classList.toggle('show', key === 'recommended');
+    document.getElementById('dietPanel-restricted').classList.toggle('show', key === 'restricted');
+  }
+  function toggleDietChip(el){
+    el.classList.toggle('on');
+    const recOn = document.querySelectorAll('#dietRecommendedChips .sel-chip.on').length;
+    const recTotal = document.querySelectorAll('#dietRecommendedChips .sel-chip').length;
+    const resOn = document.querySelectorAll('#dietRestrictedChips .sel-chip.on').length;
+    const resTotal = document.querySelectorAll('#dietRestrictedChips .sel-chip').length;
+    document.getElementById('dietRecNote').textContent = recOn + ' of ' + recTotal + ' recommended foods followed today';
+    document.getElementById('dietResNote').textContent = resOn + ' of ' + resTotal + ' restricted items avoided today';
+  }
+
+  // Initialize interactive-page defaults
+  renderSeverityBars();
+  updateReadiness();
+</script>
+
+</body>
+</html>

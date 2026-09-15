@@ -42,7 +42,9 @@ import {
   MapPin,
   Trash2,
   Eye,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Download,
+  ExternalLink
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -52,8 +54,12 @@ import {
   getCurrentDoctorProfile,
   saveCurrentDoctorProfile,
   unpublishCurrentDoctorProfile,
+  getDoctorQueue,
+  subscribeToDoctorQueue,
+  QueuedPatient,
+  QueuedPatientReport,
+  downloadPatientReport,
 } from "@/lib/doctorStore";
-import { getDoctorQueue, subscribeToDoctorQueue } from "@/lib/doctorStore";
 import {
   AIIntakeSummary,
   getAIIntakeSummary,
@@ -157,6 +163,84 @@ const DEFAULT_PATIENT: PatientData = {
   },
 };
 
+const INITIAL_SAMPLE_QUEUE: QueuedPatient[] = [
+  {
+    id: "case-intake-101",
+    userId: "PAT-83921",
+    name: "Sunita Deshmukh",
+    age: 42,
+    gender: "Female",
+    phone: "+91 98234 56789",
+    token: "AYUH-3042",
+    status: "Waiting",
+    issue: "Chronic cervical stiffness, migraine in afternoons, disturbed sleep",
+    chiefComplaint: "Cervical pain & tension headache",
+    severity: "Medium",
+    duration: "2 Months",
+    time: "10:45 AM",
+    date: "Today",
+    prakriti: "Vata-Pitta",
+    assignedDoctorName: "Dr. Rajesh Sharma",
+    assignedDoctorSpecialty: "Ayurveda",
+    reports: [
+      {
+        id: "rep-s1",
+        name: "Cervical_Spine_XRay_Report.pdf",
+        type: "PDF",
+        size: "1.8 MB",
+        date: "Today",
+      },
+      {
+        id: "rep-s2",
+        name: "AI_Clinical_Intake_Summary.pdf",
+        type: "PDF",
+        size: "350 KB",
+        date: "Today",
+        isGeneratedSummary: true,
+      },
+    ],
+    reportsCount: 2,
+    submittedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+  },
+  {
+    id: "case-intake-102",
+    userId: "PAT-91044",
+    name: "Vikram Malhotra",
+    age: 36,
+    gender: "Male",
+    phone: "+91 97123 45678",
+    token: "AYUH-5189",
+    status: "Waiting",
+    issue: "Severe acid reflux (Amlapitta), sour belching, burning in chest after meals",
+    chiefComplaint: "Severe hyperacidity & indigestion",
+    severity: "High",
+    duration: "3 Weeks",
+    time: "11:15 AM",
+    date: "Today",
+    prakriti: "Pitta Aggravation",
+    assignedDoctorName: "Dr. Ananya Iyer",
+    assignedDoctorSpecialty: "Panchakarma",
+    reports: [
+      {
+        id: "rep-v1",
+        name: "Upper_GI_Endoscopy_Summary.pdf",
+        type: "PDF",
+        size: "2.1 MB",
+        date: "Today",
+      },
+      {
+        id: "rep-v2",
+        name: "Liver_Function_Test_LFT.pdf",
+        type: "PDF",
+        size: "820 KB",
+        date: "Today",
+      },
+    ],
+    reportsCount: 2,
+    submittedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+  },
+];
+
 export default function DoctorWorkspacePage() {
   const { language, setLanguage, t, currentLanguage, supportedLanguages } = useLanguage();
 
@@ -168,6 +252,12 @@ export default function DoctorWorkspacePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"Summary" | "AYUSH Assessment" | "Medical History" | "Reports">("Summary");
   const [activeSidebarTab, setActiveSidebarTab] = useState("Home");
+
+  // Live Patient Queue State
+  const [queueList, setQueueList] = useState<QueuedPatient[]>(INITIAL_SAMPLE_QUEUE);
+  const [queueSearch, setQueueSearch] = useState("");
+  const [queueDoctorFilter, setQueueDoctorFilter] = useState("All");
+  const [queueStatusFilter, setQueueStatusFilter] = useState("All");
 
   // Current Logged-in Doctor Profile & Listing State
   const defaultDoctorForm: DoctorProfile = {
@@ -199,12 +289,42 @@ export default function DoctorWorkspacePage() {
   const [expertiseInput, setExpertiseInput] = useState<string>(defaultDoctorForm.expertise.join(", "));
   const [languagesInput, setLanguagesInput] = useState<string>(defaultDoctorForm.languages.join(", "));
 
+  const filteredQueue = queueList.filter((item) => {
+    const q = queueSearch.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      (item.name && item.name.toLowerCase().includes(q)) ||
+      (item.userId && item.userId.toLowerCase().includes(q)) ||
+      (item.id && item.id.toLowerCase().includes(q)) ||
+      (item.issue && item.issue.toLowerCase().includes(q)) ||
+      (item.chiefComplaint && item.chiefComplaint.toLowerCase().includes(q)) ||
+      (item.assignedDoctorName && item.assignedDoctorName.toLowerCase().includes(q));
+
+    const matchesDoctor =
+      queueDoctorFilter === "All" ||
+      (queueDoctorFilter === "Me" && currentDoctor.name && item.assignedDoctorName === currentDoctor.name) ||
+      item.assignedDoctorName === queueDoctorFilter;
+
+    const matchesStatus =
+      queueStatusFilter === "All" ||
+      item.status === queueStatusFilter ||
+      (item.severity && item.severity.toLowerCase() === queueStatusFilter.toLowerCase());
+
+    return matchesSearch && matchesDoctor && matchesStatus;
+  });
+
   // Load saved profile on mount
   useEffect(() => {
     // Load any queued patients added from Patient Portal bookings
     try {
       const queue = getDoctorQueue();
       if (queue && queue.length > 0) {
+        setQueueList((prev) => {
+          const ids = new Set(prev.map((p) => p.id));
+          const additions = queue.filter((q) => !ids.has(q.id));
+          return [...additions, ...prev];
+        });
+
         setPatients((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
           const newEntries = queue
@@ -265,6 +385,12 @@ export default function DoctorWorkspacePage() {
     }
     const unsubQueue = subscribeToDoctorQueue((queue) => {
       if (!queue || queue.length === 0) return;
+      setQueueList((prev) => {
+        const ids = new Set(prev.map((p) => p.id));
+        const additions = queue.filter((q) => !ids.has(q.id));
+        return [...additions, ...prev];
+      });
+
       setPatients((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
         const newEntries = queue
@@ -319,6 +445,67 @@ export default function DoctorWorkspacePage() {
       unsubQueue && unsubQueue();
     };
   }, []);
+
+  // Handler to open case sheet directly from the Live Patient Queue table
+  const handleConsultFromQueue = (item: QueuedPatient) => {
+    setPatients((prev) => {
+      const exists = prev.some((p) => p.id === item.id);
+      if (exists) return prev;
+      const newPatient: PatientData = {
+        id: item.id,
+        name: item.name,
+        age: item.age || 32,
+        gender: item.gender || "Not specified",
+        phone: item.phone || "+91 98765 43210",
+        time: item.time || "Just now",
+        language: item.language || "Hindi, English",
+        status: (item.status as any) || "Waiting",
+        chiefComplaint: item.issue || item.chiefComplaint || "Consultation Request",
+        duration: item.duration || "Recent",
+        currentMedicines: "",
+        allergies: "",
+        insights: item.prakriti || "Vata-Pitta Imbalance",
+        prakriti: item.prakriti || "Vata-Pitta",
+        agni: "Mandagni",
+        previousTreatment: "",
+        familyHistory: "",
+        completeness: 85,
+        checklist: [],
+        alerts: (item.severity === "High" || item.severity === "severe") ? [{
+          id: "severe-flag",
+          type: "danger",
+          title: "🚨 High Severity Case",
+          desc: item.issue || "Patient reported acute or severe symptoms during AI case-taking",
+          resolved: false
+        }] : [],
+        timeline: [],
+        ayushAssessment: {
+          dosha: item.prakriti || "Vata-Pitta",
+          dhatu: "Rasa, Rakta",
+          srotas: "Annavaha",
+          nidana: item.issue || "",
+          chikitsa: "Shamana Chikitsa",
+        },
+        medicalHistory: {
+          pastConditions: "",
+          surgeries: "",
+          lifestyle: "Sedentary",
+        },
+      };
+      return [newPatient, ...prev];
+    });
+
+    if (item.reports && item.reports.length > 0) {
+      setPatientReports((prev) => ({
+        ...prev,
+        [item.id]: item.reports,
+      }));
+    }
+
+    setSelectedPatientId(item.id);
+    setActiveSidebarTab("Home");
+    triggerToast(`Opened consultation workspace for ${item.name} (${item.userId || item.id})`);
+  };
 
   // AI Intake Summary State synced from Patient Portal
   const [aiIntake, setAiIntake] = useState<AIIntakeSummary | null>(null);
@@ -420,29 +607,37 @@ export default function DoctorWorkspacePage() {
       return;
     }
 
+    const doctorId =
+      currentDoctor.id && currentDoctor.id.trim()
+        ? currentDoctor.id
+        : `doc-${Date.now()}`;
+
     const updatedProfile: DoctorProfile = {
       ...currentDoctor,
+      id: doctorId,
       name: currentDoctor.name.trim(),
-      subSpecialty: currentDoctor.subSpecialty.trim() || `${currentDoctor.specialty} Specialist`,
-      qualifications: currentDoctor.qualifications.trim(),
+      specialty: currentDoctor.specialty || "Ayurveda",
+      subSpecialty: currentDoctor.subSpecialty.trim() || `${currentDoctor.specialty || "Ayurveda"} Specialist`,
+      qualifications: currentDoctor.qualifications.trim() || "BAMS, MD (Ayurveda)",
       experienceYears: Number(currentDoctor.experienceYears) || 1,
       hospital: currentDoctor.hospital.trim(),
       location: currentDoctor.location.trim() || "India",
       rating: Number(currentDoctor.rating) || 4.9,
       reviewsCount: Number(currentDoctor.reviewsCount) || 1,
       consultationFee: Number(currentDoctor.consultationFee) || 500,
-      availableTimings: currentDoctor.availableTimings.trim(),
+      availableTimings: currentDoctor.availableTimings.trim() || "Mon - Sat (10:00 AM - 04:00 PM)",
       nextAvailableSlot: currentDoctor.nextAvailableSlot.trim() || "Today, 4:00 PM",
       languages: languagesInput.split(",").map((s) => s.trim()).filter(Boolean),
       expertise: expertiseInput.split(",").map((s) => s.trim()).filter(Boolean),
       about: currentDoctor.about.trim() || "Registered AYUSH Medical Practitioner.",
-      phone: currentDoctor.phone.trim(),
+      phone: currentDoctor.phone.trim() || "+91 98765 43210",
       registrationNumber: currentDoctor.registrationNumber.trim() || "AYU-DEL-2015-08129",
       isPublished: true,
+      isSeedDoctor: false,
     };
 
-    saveCurrentDoctorProfile(updatedProfile);
-    setCurrentDoctor(updatedProfile);
+    const saved = saveCurrentDoctorProfile(updatedProfile);
+    setCurrentDoctor(saved);
     triggerToast("Your Doctor Profile has been published! Patients can now see your card on the consultation page.");
   };
 
@@ -916,18 +1111,37 @@ export default function DoctorWorkspacePage() {
               })}
             </div>
 
-            {/* Quick Switch to Doctor Listing or OPD Queue */}
+            {/* Quick Switch between Case Sheet, Live Queue, and Doctor Profile */}
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setActiveSidebarTab("Home")}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeSidebarTab !== "DoctorListing"
+                  activeSidebarTab !== "DoctorListing" && activeSidebarTab !== "Queue"
                     ? "bg-[#0E7C4A] text-white shadow-sm"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
                 }`}
               >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Case Sheet</span>
+              </button>
+
+              <button
+                onClick={() => setActiveSidebarTab("Queue")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeSidebarTab === "Queue"
+                    ? "bg-[#0E7C4A] text-white shadow-sm"
+                    : "bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800 hover:bg-amber-100"
+                }`}
+              >
                 <Users className="w-3.5 h-3.5" />
                 <span>Patient Queue</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  activeSidebarTab === "Queue"
+                    ? "bg-white text-[#0E7C4A]"
+                    : "bg-[#0E7C4A] text-white"
+                }`}>
+                  {queueList.length}
+                </span>
               </button>
 
               <button
@@ -1436,6 +1650,367 @@ export default function DoctorWorkspacePage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          ) : activeSidebarTab === "Queue" ? (
+            <div className="space-y-6">
+              {/* Queue Header & Stats */}
+              <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Real-time Sync Active
+                    </span>
+                    <span className="text-xs text-slate-400">•</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      AYUSH OPD Consultation Triage
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+                    <span>Live Patient Consultation Queue</span>
+                    <span className="text-xs sm:text-sm px-3 py-0.5 rounded-full bg-[#EAF7EF] dark:bg-emerald-950 text-[#0E7C4A] dark:text-emerald-300 font-bold">
+                      {filteredQueue.length} Patient{filteredQueue.length === 1 ? "" : "s"}
+                    </span>
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Cases submitted by patients after 4-step AI clinical case taking. Click any report to immediately download or open the case sheet to begin consultation.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const updated = getDoctorQueue();
+                      setQueueList(updated);
+                      triggerToast("Queue refreshed from latest patient submissions.");
+                    }}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-[#0E7C4A]" />
+                    <span>Refresh Queue</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveSidebarTab("Home")}
+                    className="px-4 py-2 rounded-xl bg-[#0E7C4A] hover:bg-[#0B643B] text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-emerald-800/20"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Go to Case Sheet</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Queue Metrics Overview */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <div className="text-xs font-semibold text-slate-500">Total in Queue</div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">{queueList.length}</div>
+                  <div className="text-[11px] text-emerald-600 mt-0.5">Active OPD submissions</div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <div className="text-xs font-semibold text-slate-500">High Priority / Red Flags</div>
+                  <div className="text-2xl font-black text-red-600 dark:text-red-400 mt-1">
+                    {queueList.filter((q) => q.severity === "High" || q.severity === "severe" || (q.status as string) === "Triaged").length}
+                  </div>
+                  <div className="text-[11px] text-red-500 mt-0.5">Requires urgent review</div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <div className="text-xs font-semibold text-slate-500">Clinical Reports Attached</div>
+                  <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
+                    {queueList.reduce((acc, q) => acc + (q.reports?.length || 0), 0)}
+                  </div>
+                  <div className="text-[11px] text-blue-500 mt-0.5">Direct 1-click download</div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <div className="text-xs font-semibold text-slate-500">Assigned to You</div>
+                  <div className="text-2xl font-black text-[#0E7C4A] dark:text-emerald-400 mt-1">
+                    {queueList.filter((q) => currentDoctor.name && q.assignedDoctorName === currentDoctor.name).length}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">Direct patient referrals</div>
+                </div>
+              </div>
+
+              {/* Filters & Search Toolbar */}
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+                <div className="relative w-full md:w-96">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={queueSearch}
+                    onChange={(e) => setQueueSearch(e.target.value)}
+                    placeholder="Search User ID, Patient Name, Issue, Doctor..."
+                    className="w-full pl-10 pr-4 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#0E7C4A]"
+                  />
+                  {queueSearch && (
+                    <button
+                      onClick={() => setQueueSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                  <div className="flex items-center gap-1 text-xs text-slate-500 shrink-0 font-medium">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-[#0E7C4A]" />
+                    <span>Filter:</span>
+                  </div>
+
+                  {/* Doctor Filter */}
+                  <select
+                    value={queueDoctorFilter}
+                    onChange={(e) => setQueueDoctorFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0E7C4A]"
+                  >
+                    <option value="All">All Assigned Doctors</option>
+                    {currentDoctor.name && (
+                      <option value="Me">Assigned to Me ({currentDoctor.name})</option>
+                    )}
+                    {Array.from(new Set(queueList.map((q) => q.assignedDoctorName).filter(Boolean))).map((docName) => (
+                      <option key={docName} value={docName}>
+                        {docName}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Status / Severity Filter */}
+                  <select
+                    value={queueStatusFilter}
+                    onChange={(e) => setQueueStatusFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0E7C4A]"
+                  >
+                    <option value="All">All Severity / Status</option>
+                    <option value="severe">High Severity (Severe)</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="mild">Mild</option>
+                    <option value="Waiting">Waiting</option>
+                    <option value="Triaged">Triaged</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* CARD TABLE RENDERING */}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+                {filteredQueue.length === 0 ? (
+                  <div className="py-16 px-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-400">
+                      <Users className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+                      No matching patients in queue
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                      {queueSearch || queueDoctorFilter !== "All" || queueStatusFilter !== "All"
+                        ? "Try adjusting your search query or reset your filters."
+                        : "When patients complete AI Case Taking and submit their case, they will appear here in real time."}
+                    </p>
+                    {(queueSearch || queueDoctorFilter !== "All" || queueStatusFilter !== "All") && (
+                      <button
+                        onClick={() => {
+                          setQueueSearch("");
+                          setQueueDoctorFilter("All");
+                          setQueueStatusFilter("All");
+                        }}
+                        className="mt-4 px-4 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 cursor-pointer"
+                      >
+                        Reset Filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          <th className="py-3.5 px-4">User ID</th>
+                          <th className="py-3.5 px-4">Patient Name &amp; Details</th>
+                          <th className="py-3.5 px-4">Issue / Symptoms</th>
+                          <th className="py-3.5 px-4 min-w-[220px]">Patient Report</th>
+                          <th className="py-3.5 px-4">Assigned Doctor</th>
+                          <th className="py-3.5 px-4 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                        {filteredQueue.map((item) => {
+                          const reports = item.reports || [];
+                          const isHigh = item.severity === "High" || item.severity === "severe";
+                          const isMod = item.severity === "Medium" || item.severity === "moderate";
+
+                          return (
+                            <tr
+                              key={item.id}
+                              className="hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-colors group"
+                            >
+                              {/* 1. USER ID */}
+                              <td className="py-4 px-4 align-top">
+                                <div className="space-y-1">
+                                  <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 block w-fit">
+                                    {item.userId || item.id}
+                                  </span>
+                                  <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    <span>{item.time || "Recently"}</span>
+                                  </div>
+                                  <span
+                                    className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                      item.status === "In Consultation"
+                                        ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                                        : (item.status as string) === "Triaged"
+                                        ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                    }`}
+                                  >
+                                    {item.status || "Waiting"}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* 2. PATIENT NAME */}
+                              <td className="py-4 px-4 align-top">
+                                <div className="space-y-1">
+                                  <div className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+                                    <span>{item.name}</span>
+                                    {isHigh && (
+                                      <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="High Priority" />
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                                    {item.age ? `${item.age} yrs` : ""} {item.gender ? `• ${item.gender}` : ""}
+                                  </div>
+                                  {item.phone && (
+                                    <div className="text-[11px] text-slate-400 font-mono">
+                                      {item.phone}
+                                    </div>
+                                  )}
+                                  {item.language && (
+                                    <span className="inline-block text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                      {item.language}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* 3. ISSUE & SYMPTOMS */}
+                              <td className="py-4 px-4 align-top">
+                                <div className="space-y-1.5 max-w-xs">
+                                  <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs line-clamp-2">
+                                    {item.issue || item.chiefComplaint || "General AYUSH OPD Case"}
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {/* Severity pill */}
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        isHigh
+                                          ? "bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300 border border-red-200 dark:border-red-900"
+                                          : isMod
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-900"
+                                          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900"
+                                      }`}
+                                    >
+                                      {item.severity ? `${item.severity.toUpperCase()}` : "STANDARD"}
+                                    </span>
+
+                                    {/* Prakriti / Dosha */}
+                                    {item.prakriti && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
+                                        {item.prakriti}
+                                      </span>
+                                    )}
+
+                                    {item.duration && (
+                                      <span className="text-[10px] text-slate-400">
+                                        • {item.duration}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* 4. PATIENT REPORT (CLICK TO DOWNLOAD) */}
+                              <td className="py-4 px-4 align-top">
+                                {reports.length > 0 ? (
+                                  <div className="space-y-1.5">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                      {reports.length} File{reports.length === 1 ? "" : "s"} Available
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                      {reports.map((rep) => (
+                                        <button
+                                          key={rep.id}
+                                          type="button"
+                                          onClick={() => {
+                                            downloadPatientReport(rep);
+                                            triggerToast(`Downloading report: ${rep.name}`);
+                                          }}
+                                          className="group/btn text-left px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/80 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-slate-800 dark:text-slate-200 transition-all flex items-center justify-between gap-2 shadow-xs cursor-pointer"
+                                          title={`Click to download ${rep.name}`}
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <div className="w-6 h-6 rounded-lg bg-[#0E7C4A] text-white flex items-center justify-center shrink-0 shadow-xs">
+                                              <FileText className="w-3.5 h-3.5" />
+                                            </div>
+                                            <div className="truncate min-w-0">
+                                              <p className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate group-hover/btn:text-[#0E7C4A] dark:group-hover/btn:text-emerald-300">
+                                                {rep.name}
+                                              </p>
+                                              <p className="text-[9.5px] text-slate-400">
+                                                {rep.type || "Document"} {rep.size ? `• ${rep.size}` : ""}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <div className="w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 flex items-center justify-center shrink-0 text-[#0E7C4A] dark:text-emerald-400 group-hover/btn:bg-[#0E7C4A] group-hover/btn:text-white transition-colors">
+                                            <Download className="w-3 h-3" />
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="py-2 text-slate-400 text-[11px] italic flex items-center gap-1.5">
+                                    <Info className="w-3.5 h-3.5 text-slate-300" />
+                                    <span>No reports attached</span>
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* 5. ASSIGNED DOCTOR */}
+                              <td className="py-4 px-4 align-top">
+                                <div className="space-y-1">
+                                  <div className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1">
+                                    <Stethoscope className="w-3.5 h-3.5 text-[#0E7C4A]" />
+                                    <span>{item.assignedDoctorName || "General AYUSH OPD"}</span>
+                                  </div>
+                                  {item.assignedDoctorSpecialty && (
+                                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                      {item.assignedDoctorSpecialty}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* 6. ACTION: CONSULT / OPEN CASE SHEET */}
+                              <td className="py-4 px-4 align-top text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleConsultFromQueue(item)}
+                                  className="px-3.5 py-2 rounded-xl bg-[#0E7C4A] hover:bg-[#0B643B] text-white text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 ml-auto cursor-pointer"
+                                >
+                                  <span>Open Case</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

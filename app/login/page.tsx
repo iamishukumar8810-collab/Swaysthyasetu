@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { 
   ArrowLeft, 
@@ -11,6 +11,7 @@ import {
   CheckCircle2, 
   Sparkles, 
   ArrowRight,
+  Chrome,
   Mail,
   Lock,
   Eye,
@@ -19,19 +20,45 @@ import {
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
+function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
+      />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   // Authentication Method: "phone" | "email" (Default to email as requested)
   const [authMode, setAuthMode] = useState<"phone" | "email">("email");
 
   // Mobile Auth states
-  const [phoneNumber, setPhoneNumber] = useState("9636462356");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
 
-  // Email Auth states (Defaults: doctor@gmail.com / pat@gmail.com, password: 123456)
-  const [email, setEmail] = useState("doctor@gmail.com");
-  const [password, setPassword] = useState("123456");
+  // Email Auth states
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Google User Session state
+  const [googleUser, setGoogleUser] = useState<any>(null);
 
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
@@ -41,6 +68,59 @@ export default function LoginPage() {
   // Role Selection Overlay state (opens after login)
   const [showRoleOverlay, setShowRoleOverlay] = useState(false);
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    // Check URL parameters for OAuth errors
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlError = searchParams.get("error_description") || searchParams.get("error");
+      if (urlError) {
+        triggerToast(`Google Auth: ${decodeURIComponent(urlError)}`);
+      }
+    }
+
+    // 1. Check existing active session or session from OAuth redirect
+    const checkInitialSession = async () => {
+      if (!isSupabaseConfigured) return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (active && data.session?.user) {
+          setGoogleUser(data.session.user);
+          setEmail(data.session.user.email || "");
+          setShowRoleOverlay(true);
+        }
+      } catch (err) {
+        console.error("Session check error", err);
+      }
+    };
+
+    checkInitialSession();
+
+    // 2. Subscribe to auth events (e.g. OAuth callback sign in)
+    if (isSupabaseConfigured) {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        if (active && (event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
+          setGoogleUser(session.user);
+          setEmail(session.user.email || "");
+          setShowRoleOverlay(true);
+          triggerToast(`Google sign-in successful! Please select your role.`);
+        }
+      });
+
+      return () => {
+        active = false;
+        subscription?.unsubscribe();
+      };
+    }
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const triggerToast = (message: string) => {
     setToastMessage(message);
@@ -293,6 +373,45 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    if (loading) return;
+    setLoading(true);
+
+    if (isSupabaseConfigured) {
+      try {
+        const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${origin}/login`,
+            queryParams: {
+              access_type: "offline",
+              prompt: "consent",
+            },
+          },
+        });
+
+        if (error) {
+          setLoading(false);
+          triggerToast(error.message || "Google login failed. Please try again.");
+        }
+      } catch (err: any) {
+        setLoading(false);
+        triggerToast("Google login encountered an error.");
+      }
+    } else {
+      // Local fallback
+      setTimeout(() => {
+        setLoading(false);
+        const demoEmail = "google.user@ayush.gov.in";
+        setEmail(demoEmail);
+        setGoogleUser({ email: demoEmail, user_metadata: { full_name: "Google AYUSH User" } });
+        setShowRoleOverlay(true);
+        triggerToast("Logged in with Google (Demo Mode)");
+      }, 400);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#DDEAE2] flex items-center justify-center p-0 sm:p-6 font-sans select-none relative">
       {/* Back to website floating link on desktop */}
@@ -408,9 +527,6 @@ export default function LoginPage() {
                   <label className="text-[13px] font-semibold text-[#123B2C]" htmlFor="phone">
                     Mobile number
                   </label>
-                  <span className="text-[11px] text-[#0E7C4A] bg-[#EAF7EF] px-2 py-0.5 rounded-full font-medium">
-                    Default: 9636462356
-                  </span>
                 </div>
 
                 <div className="flex items-center bg-[#EAF7EF] border-[1.5px] border-[#CFEBDB] rounded-[14px] px-4 h-[56px] transition-all focus-within:border-[#0E7C4A] focus-within:bg-white focus-within:shadow-[0_8px_20px_-10px_rgba(14,124,74,0.35)] focus-within:-translate-y-[1px]">
@@ -449,8 +565,18 @@ export default function LoginPage() {
                   <button
                     type="button"
                     disabled={loading}
+                    onClick={handleGoogleAuth}
+                    className="h-[50px] rounded-[14px] text-[14.5px] font-semibold text-[#123B2C] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#F3FAF6] hover:border-[#0E7C4A] disabled:opacity-60 shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-4 h-4" />}
+                    <span>Continue with Google</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={loading}
                     onClick={() => handleSendOtp("signup", "Setting up your account…")}
-                    className={`h-[52px] rounded-[14px] text-[15.5px] font-semibold text-[#0A5E39] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#EAF7EF] disabled:opacity-60 hover:shadow-[0_16px_26px_-14px_rgba(18,59,44,0.25)] transition-all duration-200 cursor-pointer relative overflow-hidden flex items-center justify-center gap-2 ${
+                    className={`h-[50px] rounded-[14px] text-[14.5px] font-semibold text-[#0A5E39] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#EAF7EF] disabled:opacity-60 transition-all cursor-pointer relative overflow-hidden flex items-center justify-center gap-2 ${
                       poppedBtn === "signup" ? "animate-[popUp_0.45s_cubic-bezier(.34,1.56,.64,1)]" : "hover:-translate-y-1 hover:scale-[1.02]"
                     }`}
                   >
@@ -591,9 +717,15 @@ export default function LoginPage() {
                 <label className="text-[13px] font-semibold text-[#123B2C]" htmlFor="email">
                   Email address
                 </label>
-                <span className="text-[10.5px] text-[#0E7C4A] bg-[#EAF7EF] px-2 py-0.5 rounded-full font-medium">
-                  {email === "doctor@gmail.com" ? "Doctor Role" : email === "pat@gmail.com" ? "Patient Role" : "Custom"}
-                </span>
+                {email.trim() && (
+                  <span className="text-[10.5px] text-[#0E7C4A] bg-[#EAF7EF] px-2 py-0.5 rounded-full font-medium">
+                    {email.trim().toLowerCase() === "doctor@gmail.com"
+                      ? "Doctor Role"
+                      : email.trim().toLowerCase() === "pat@gmail.com" || email.trim().toLowerCase() === "patient@gmail.com"
+                      ? "Patient Role"
+                      : "Custom"}
+                  </span>
+                )}
               </div>
 
               {/* Email Input */}
@@ -602,7 +734,7 @@ export default function LoginPage() {
                 <input
                   id="email"
                   type="email"
-                  placeholder="doctor@gmail.com or pat@gmail.com"
+                  placeholder="Enter your email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="border-none bg-transparent outline-none text-[15px] font-medium text-[#123B2C] w-full placeholder-[#A7B6AF]"
@@ -629,7 +761,7 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter password (123456)"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="border-none bg-transparent outline-none text-[15px] font-medium text-[#123B2C] w-full placeholder-[#A7B6AF]"
@@ -650,6 +782,16 @@ export default function LoginPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleGoogleAuth}
+                  className="h-[50px] rounded-[14px] text-[14.5px] font-semibold text-[#123B2C] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#F3FAF6] hover:border-[#0E7C4A] disabled:opacity-60 shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-4 h-4" />}
+                  <span>Continue with Google</span>
+                </button>
+
                 <button
                   type="button"
                   disabled={loading}
@@ -733,7 +875,12 @@ export default function LoginPage() {
             {/* Modal Header */}
             <div className="text-center relative z-10 mb-8 space-y-2">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAF7EF] dark:bg-emerald-950/80 border border-[#CFEBDB] dark:border-emerald-800 text-[#0E7C4A] dark:text-emerald-300 text-xs font-bold shadow-sm">
-                <CheckCircle2 className="w-3.5 h-3.5" /> {authMode === "email" ? `Email Verified (${email})` : `Mobile Verified (+91 ${phoneNumber})`}
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {googleUser
+                  ? `Google Verified (${googleUser.user_metadata?.full_name || googleUser.email || email})`
+                  : authMode === "email"
+                  ? `Email Verified (${email})`
+                  : `Mobile Verified (+91 ${phoneNumber})`}
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-[#123B2C] dark:text-white tracking-tight">
                 Select Your Role
