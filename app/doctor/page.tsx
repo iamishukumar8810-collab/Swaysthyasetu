@@ -164,84 +164,6 @@ const DEFAULT_PATIENT: PatientData = {
   },
 };
 
-const INITIAL_SAMPLE_QUEUE: QueuedPatient[] = [
-  {
-    id: "case-intake-101",
-    userId: "PAT-83921",
-    name: "Sunita Deshmukh",
-    age: 42,
-    gender: "Female",
-    phone: "+91 98234 56789",
-    token: "AYUH-3042",
-    status: "Waiting",
-    issue: "Chronic cervical stiffness, migraine in afternoons, disturbed sleep",
-    chiefComplaint: "Cervical pain & tension headache",
-    severity: "Medium",
-    duration: "2 Months",
-    time: "10:45 AM",
-    date: "Today",
-    prakriti: "Vata-Pitta",
-    assignedDoctorName: "Dr. Rajesh Sharma",
-    assignedDoctorSpecialty: "Ayurveda",
-    reports: [
-      {
-        id: "rep-s1",
-        name: "Cervical_Spine_XRay_Report.pdf",
-        type: "PDF",
-        size: "1.8 MB",
-        date: "Today",
-      },
-      {
-        id: "rep-s2",
-        name: "AI_Clinical_Intake_Summary.pdf",
-        type: "PDF",
-        size: "350 KB",
-        date: "Today",
-        isGeneratedSummary: true,
-      },
-    ],
-    reportsCount: 2,
-    submittedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "case-intake-102",
-    userId: "PAT-91044",
-    name: "Vikram Malhotra",
-    age: 36,
-    gender: "Male",
-    phone: "+91 97123 45678",
-    token: "AYUH-5189",
-    status: "Waiting",
-    issue: "Severe acid reflux (Amlapitta), sour belching, burning in chest after meals",
-    chiefComplaint: "Severe hyperacidity & indigestion",
-    severity: "High",
-    duration: "3 Weeks",
-    time: "11:15 AM",
-    date: "Today",
-    prakriti: "Pitta Aggravation",
-    assignedDoctorName: "Dr. Ananya Iyer",
-    assignedDoctorSpecialty: "Panchakarma",
-    reports: [
-      {
-        id: "rep-v1",
-        name: "Upper_GI_Endoscopy_Summary.pdf",
-        type: "PDF",
-        size: "2.1 MB",
-        date: "Today",
-      },
-      {
-        id: "rep-v2",
-        name: "Liver_Function_Test_LFT.pdf",
-        type: "PDF",
-        size: "820 KB",
-        date: "Today",
-      },
-    ],
-    reportsCount: 2,
-    submittedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-  },
-];
-
 export default function DoctorWorkspacePage() {
   const { language, setLanguage, t, currentLanguage, supportedLanguages } = useLanguage();
 
@@ -255,7 +177,7 @@ export default function DoctorWorkspacePage() {
   const [activeSidebarTab, setActiveSidebarTab] = useState("Home");
 
   // Live Patient Queue State
-  const [queueList, setQueueList] = useState<QueuedPatient[]>(INITIAL_SAMPLE_QUEUE);
+  const [queueList, setQueueList] = useState<QueuedPatient[]>([]);
   const [queueSearch, setQueueSearch] = useState("");
   const [queueDoctorFilter, setQueueDoctorFilter] = useState("All");
   const [queueStatusFilter, setQueueStatusFilter] = useState("All");
@@ -477,11 +399,11 @@ export default function DoctorWorkspacePage() {
       const newPatient: PatientData = {
         id: item.id,
         name: item.name,
-        age: item.age || 32,
+        age: item.age || 0,
         gender: item.gender || "Not specified",
-        phone: item.phone || "+91 98765 43210",
-        time: item.time || "Just now",
-        language: item.language || "Hindi, English",
+        phone: item.phone || "",
+        time: item.time || "",
+        language: item.language || "",
         status: (item.status as any) || "Waiting",
         chiefComplaint: item.issue || item.chiefComplaint || "Consultation Request",
         duration: item.duration || "Recent",
@@ -653,7 +575,7 @@ export default function DoctorWorkspacePage() {
       languages: languagesInput.split(",").map((s) => s.trim()).filter(Boolean),
       expertise: expertiseInput.split(",").map((s) => s.trim()).filter(Boolean),
       about: currentDoctor.about.trim() || "Registered AYUSH Medical Practitioner.",
-      phone: currentDoctor.phone.trim() || "+91 98765 43210",
+      phone: currentDoctor.phone.trim(),
       registrationNumber: currentDoctor.registrationNumber.trim() || "AYU-DEL-2015-08129",
       isPublished: true,
       isSeedDoctor: false,

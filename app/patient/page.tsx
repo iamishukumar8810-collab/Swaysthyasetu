@@ -126,6 +126,32 @@ export default function PatientDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (!showDoctorSelectModal) return;
+
+    let active = true;
+    const refreshPublishedDoctors = async () => {
+      const localDoctors = getDoctors();
+      if (active && localDoctors.length > 0) {
+        setDoctors(localDoctors);
+        setSelectedDoctorForCase((current) => current || localDoctors[0]);
+      }
+
+      const cloudDoctors = await getPublishedDoctorsFromSupabase();
+      if (active && cloudDoctors.length > 0) {
+        setDoctors(cloudDoctors);
+        setSelectedDoctorForCase((current) =>
+          cloudDoctors.find((doctor) => doctor.id === current?.id) || cloudDoctors[0]
+        );
+      }
+    };
+
+    void refreshPublishedDoctors();
+    return () => {
+      active = false;
+    };
+  }, [showDoctorSelectModal]);
+
+  useEffect(() => {
     try {
       const saved = localStorage.getItem("swasthya_setu_conversations");
       if (saved) {
@@ -455,9 +481,9 @@ export default function PatientDashboardPage() {
         id: summary.id,
         userId: userId,
         name: summary.patientName,
-        age: patientData.profile.age || 32,
+        age: patientData.profile.age || 0,
         gender: patientData.profile.gender || "Male",
-        phone: patientData.profile.phone || "+91 9876543210",
+        phone: patientData.profile.phone || "",
         token: `AYUH-${Math.floor(1000 + Math.random() * 9000)}`,
         status: "Waiting",
         issue: summary.chiefComplaint || aiSymptoms.join(", ") || "Clinical symptoms",
@@ -1172,7 +1198,7 @@ export default function PatientDashboardPage() {
 
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5">
                 {[
-                  ["Weight", patientData.profile.age ? "62" : "-", "kg", "Baseline", "#2E6FA3"],
+                  ["Weight", "-", "kg", "No measurement", "#2E6FA3"],
                   ["Blood Pressure", "120/80", "mmHg", "Normal", "#0E7C4A"],
                   ["Blood Sugar", "95", "mg/dL", "Fasting", "#B4790E"],
                   ["Heart Rate", "72", "bpm", "Resting", "#C23D74"],
@@ -1194,7 +1220,7 @@ export default function PatientDashboardPage() {
               <div className="bg-white border border-[#D7E7F5] rounded-[18px] p-5 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div><h2 className="text-[15px] font-bold text-[#1F5580]">📊 Health Trends</h2><p className="text-xs text-[#6C7D76] mt-1">Health & vital progression over time.</p></div>
-                  <div className="text-right"><strong className="text-[27px] text-[#1F5580]">{patientData.profile.age ? "62" : "—"} <small className="text-xs font-semibold text-[#6C7D76]">kg</small></strong><p className="text-[11px] font-bold text-[#1F8B4C]">Stable vital baseline</p></div>
+                  <div className="text-right"><strong className="text-[27px] text-[#1F5580]">— <small className="text-xs font-semibold text-[#6C7D76]">kg</small></strong><p className="text-[11px] font-bold text-[#6C7D76]">No measurement recorded</p></div>
                 </div>
                 <div className="flex gap-1.5 mt-4 flex-wrap">
                   {['Weight', 'Blood Pressure', 'Blood Sugar', 'Heart Rate', 'Sleep', 'Steps'].map((tab, index) => <button key={tab} onClick={() => triggerToast(`${tab} trend selected`)} className={`text-[11px] font-bold px-3 py-1.5 rounded-full border ${index === 0 ? 'bg-[#2E6FA3] border-[#2E6FA3] text-white' : 'bg-[#F5F9FD] border-[#D7E7F5] text-[#6C7D76]'}`}>{tab}</button>)}

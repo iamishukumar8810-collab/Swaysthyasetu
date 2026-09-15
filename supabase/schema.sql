@@ -288,30 +288,52 @@ as $$
   );
 $$;
 
+drop policy if exists profiles_self on public.profiles;
 create policy profiles_self on public.profiles for all using (id = auth.uid()) with check (id = auth.uid());
+drop policy if exists doctors_public_read on public.doctor_profiles;
 create policy doctors_public_read on public.doctor_profiles for select using (is_published = true or user_id = auth.uid());
+drop policy if exists doctors_self_write on public.doctor_profiles;
 create policy doctors_self_write on public.doctor_profiles for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists patient_profile_owner on public.patient_profiles;
 create policy patient_profile_owner on public.patient_profiles for all using (user_id = auth.uid() or public.is_assigned_doctor(user_id)) with check (user_id = auth.uid());
+drop policy if exists appointments_participant on public.appointments;
 create policy appointments_participant on public.appointments for all using (patient_id = auth.uid() or doctor_id = auth.uid()) with check (patient_id = auth.uid() or doctor_id = auth.uid());
+drop policy if exists visits_owner_or_doctor on public.visits;
 create policy visits_owner_or_doctor on public.visits for all using (patient_id = auth.uid() or doctor_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid() or doctor_id = auth.uid());
+drop policy if exists medications_owner_or_doctor on public.medications;
 create policy medications_owner_or_doctor on public.medications for all using (patient_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid() or prescribed_by = auth.uid());
+drop policy if exists adherence_owner on public.medication_adherence;
 create policy adherence_owner on public.medication_adherence for all using (patient_id = auth.uid()) with check (patient_id = auth.uid());
+drop policy if exists reports_owner_or_doctor on public.medical_reports;
 create policy reports_owner_or_doctor on public.medical_reports for all using (patient_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid() or uploaded_by = auth.uid());
+drop policy if exists intake_owner_or_doctor on public.ai_intake_summaries;
 create policy intake_owner_or_doctor on public.ai_intake_summaries for all using (patient_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid());
+drop policy if exists metrics_owner_or_doctor on public.health_metrics;
 create policy metrics_owner_or_doctor on public.health_metrics for all using (patient_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid());
+drop policy if exists conversation_member_read on public.conversations;
 create policy conversation_member_read on public.conversations for select using (exists (select 1 from public.conversation_members cm where cm.conversation_id = id and cm.user_id = auth.uid()));
+drop policy if exists conversation_member_write on public.conversations;
 create policy conversation_member_write on public.conversations for insert with check (true);
+drop policy if exists member_read on public.conversation_members;
 create policy member_read on public.conversation_members for select using (user_id = auth.uid() or exists (select 1 from public.conversation_members cm where cm.conversation_id = conversation_id and cm.user_id = auth.uid()));
+drop policy if exists member_insert on public.conversation_members;
 create policy member_insert on public.conversation_members for insert with check (user_id = auth.uid() or exists (select 1 from public.conversation_members cm where cm.conversation_id = conversation_id and cm.user_id = auth.uid()));
+drop policy if exists messages_member_read on public.messages;
 create policy messages_member_read on public.messages for select using (exists (select 1 from public.conversation_members cm where cm.conversation_id = messages.conversation_id and cm.user_id = auth.uid()));
+drop policy if exists messages_member_insert on public.messages;
 create policy messages_member_insert on public.messages for insert with check (sender_id = auth.uid() and exists (select 1 from public.conversation_members cm where cm.conversation_id = messages.conversation_id and cm.user_id = auth.uid()));
+drop policy if exists notifications_owner on public.notifications;
 create policy notifications_owner on public.notifications for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists settings_owner on public.user_settings;
 create policy settings_owner on public.user_settings for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 insert into storage.buckets (id, name, public)
 values ('medical-reports', 'medical-reports', false)
 on conflict (id) do nothing;
 
+drop policy if exists medical_reports_storage_read on storage.objects;
 create policy medical_reports_storage_read on storage.objects for select using (bucket_id = 'medical-reports' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists medical_reports_storage_insert on storage.objects;
 create policy medical_reports_storage_insert on storage.objects for insert with check (bucket_id = 'medical-reports' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists medical_reports_storage_delete on storage.objects;
 create policy medical_reports_storage_delete on storage.objects for delete using (bucket_id = 'medical-reports' and (storage.foldername(name))[1] = auth.uid()::text);
