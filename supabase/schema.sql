@@ -26,6 +26,9 @@ create table if not exists public.profiles (
 
 create table if not exists public.doctor_profiles (
   user_id uuid primary key references public.profiles(id) on delete cascade,
+  display_name text not null default '',
+  phone text,
+  avatar_url text,
   specialty text not null default 'Ayurveda',
   sub_specialty text,
   qualifications text,
@@ -42,6 +45,10 @@ create table if not exists public.doctor_profiles (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.doctor_profiles add column if not exists display_name text not null default '';
+alter table public.doctor_profiles add column if not exists phone text;
+alter table public.doctor_profiles add column if not exists avatar_url text;
 
 create table if not exists public.patient_profiles (
   user_id uuid primary key references public.profiles(id) on delete cascade,

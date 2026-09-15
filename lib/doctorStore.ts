@@ -137,7 +137,7 @@ function mapSupabaseDoctor(row: any): DoctorProfile {
   return {
     id: row.user_id,
     userId: row.user_id,
-    name: row.full_name || row.name || "AYUSH Doctor",
+    name: row.display_name || row.full_name || row.name || "AYUSH Doctor",
     specialty: row.specialty || "Ayurveda",
     subSpecialty: row.sub_specialty || "AYUSH Specialist",
     qualifications: row.qualifications || "BAMS, MD (Ayurveda)",
@@ -167,18 +167,13 @@ export async function getPublishedDoctorsFromSupabase(): Promise<DoctorProfile[]
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from("doctor_profiles")
-    .select("*, profiles(full_name, phone, avatar_url)")
+    .select("*")
     .eq("is_published", true);
   if (error) {
     console.error("Failed to load published doctors from Supabase", error);
     return [];
   }
-  return (data || []).map((row: any) => mapSupabaseDoctor({
-    ...row,
-    full_name: row.profiles?.full_name,
-    phone: row.profiles?.phone,
-    avatar_url: row.profiles?.avatar_url,
-  }));
+  return (data || []).map((row: any) => mapSupabaseDoctor(row));
 }
 
 export async function publishDoctorProfileToSupabase(doctor: DoctorProfile): Promise<void> {
@@ -186,8 +181,21 @@ export async function publishDoctorProfileToSupabase(doctor: DoctorProfile): Pro
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw new Error("Please sign in before publishing your doctor profile.");
 
+  const { error: profileError } = await supabase.from("profiles").upsert({
+    id: authData.user.id,
+    role: "doctor",
+    full_name: doctor.name,
+    email: authData.user.email || "",
+    phone: doctor.phone || null,
+    avatar_url: authData.user.user_metadata?.avatar_url || null,
+  }, { onConflict: "id" });
+  if (profileError) throw new Error(profileError.message || "Could not save doctor account profile.");
+
   const { error } = await supabase.from("doctor_profiles").upsert({
     user_id: authData.user.id,
+    display_name: doctor.name,
+    phone: doctor.phone || null,
+    avatar_url: authData.user.user_metadata?.avatar_url || null,
     specialty: doctor.specialty,
     sub_specialty: doctor.subSpecialty,
     qualifications: doctor.qualifications,
