@@ -176,9 +176,13 @@ export async function getPublishedDoctorsFromSupabase(): Promise<DoctorProfile[]
 }
 
 export async function publishDoctorProfileToSupabase(doctor: DoctorProfile): Promise<void> {
-  if (!isSupabaseConfigured) return;
+  if (!isSupabaseConfigured) {
+    throw new Error("Supabase environment variables are missing on this deployment.");
+  }
   const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) throw new Error("Please sign in before publishing your doctor profile.");
+  if (authError || !authData.user) {
+    throw new Error(authError?.message || "Google session not found. Please sign in again.");
+  }
 
   const { error: profileError } = await supabase.from("profiles").upsert({
     id: authData.user.id,

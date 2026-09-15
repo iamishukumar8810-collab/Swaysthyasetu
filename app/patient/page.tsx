@@ -100,6 +100,7 @@ export default function PatientDashboardPage() {
   const [selectedDoctorForCase, setSelectedDoctorForCase] = useState<DoctorProfile | null>(null);
   const [doctorSearchFilter, setDoctorSearchFilter] = useState("");
   const [doctorSpecialtyFilter, setDoctorSpecialtyFilter] = useState("All");
+  const [doctorDirectoryError, setDoctorDirectoryError] = useState("");
 
   useEffect(() => {
     try {
@@ -107,12 +108,14 @@ export default function PatientDashboardPage() {
       setDoctors(initialDocs);
       setSelectedDoctorForCase(initialDocs[0] || null);
       void getPublishedDoctorsFromSupabase().then((cloudDocs) => {
+        setDoctorDirectoryError("");
         if (cloudDocs.length > 0) {
           setDoctors(cloudDocs);
           setSelectedDoctorForCase(cloudDocs[0]);
         }
       }).catch((error) => {
         console.error("Failed to load published doctors", error);
+        setDoctorDirectoryError(error instanceof Error ? error.message : "Could not load published doctors.");
       });
       const unsub = subscribeToDoctors((updated) => {
         const docsList = updated && updated.length > 0 ? updated : getDoctors();
@@ -139,6 +142,7 @@ export default function PatientDashboardPage() {
       }
 
       const cloudDoctors = await getPublishedDoctorsFromSupabase();
+      if (active) setDoctorDirectoryError("");
       if (active && cloudDoctors.length > 0) {
         setDoctors(cloudDoctors);
         setSelectedDoctorForCase((current) =>
@@ -147,7 +151,11 @@ export default function PatientDashboardPage() {
       }
     };
 
-    void refreshPublishedDoctors();
+    void refreshPublishedDoctors().catch((error) => {
+      if (active) {
+        setDoctorDirectoryError(error instanceof Error ? error.message : "Could not load published doctors.");
+      }
+    });
     return () => {
       active = false;
     };
@@ -2470,7 +2478,15 @@ export default function PatientDashboardPage() {
                 })
               ) : (
                 <div className="py-10 text-center text-xs text-slate-500">
-                  No doctors matched your search. You can still submit to the General AYUSH OPD Queue.
+                  {doctorDirectoryError ? (
+                    <>
+                      <p className="font-semibold text-red-600">Doctor directory unavailable</p>
+                      <p className="mt-2 text-[11px] text-red-500">{doctorDirectoryError}</p>
+                      <p className="mt-2">Check that the doctor profile was published with a valid Google session.</p>
+                    </>
+                  ) : (
+                    "No published doctors are available yet."
+                  )}
                 </div>
               )}
             </div>

@@ -586,14 +586,14 @@ export default function DoctorWorkspacePage() {
       isSeedDoctor: false,
     };
 
-    const saved = saveCurrentDoctorProfile(updatedProfile);
-    setCurrentDoctor(saved);
     try {
-      await publishDoctorProfileToSupabase(saved);
+      await publishDoctorProfileToSupabase(updatedProfile);
     } catch (error) {
-      triggerToast(error instanceof Error ? error.message : "Cloud publish failed. Profile saved locally only.");
+      triggerToast(error instanceof Error ? error.message : "Cloud publish failed. Nothing was published.");
       return;
     }
+    const saved = saveCurrentDoctorProfile(updatedProfile);
+    setCurrentDoctor(saved);
     triggerToast("Your Doctor Profile has been published! Patients can now see your card on the consultation page.");
   };
 
