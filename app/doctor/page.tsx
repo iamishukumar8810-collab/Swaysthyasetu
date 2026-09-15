@@ -56,6 +56,7 @@ import {
   publishDoctorProfileToSupabase,
   unpublishCurrentDoctorProfile,
   getDoctorQueue,
+  getDoctorQueueFromSupabase,
   subscribeToDoctorQueue,
   QueuedPatient,
   QueuedPatientReport,
@@ -314,6 +315,16 @@ export default function DoctorWorkspacePage() {
         });
       }
     }
+    void getDoctorQueueFromSupabase().then((cloudQueue) => {
+      if (!cloudQueue.length) return;
+      setQueueList((prev) => {
+        const byId = new Map(prev.map((patient) => [patient.id, patient]));
+        cloudQueue.forEach((patient) => byId.set(patient.id, patient));
+        return Array.from(byId.values());
+      });
+    }).catch((error) => {
+      console.error("Failed to load cloud doctor queue", error);
+    });
     const unsubQueue = subscribeToDoctorQueue((queue) => {
       if (!queue || queue.length === 0) return;
       setQueueList((prev) => {
@@ -386,6 +397,14 @@ export default function DoctorWorkspacePage() {
         queue.forEach((patient) => byId.set(patient.id, patient));
         return Array.from(byId.values());
       });
+      void getDoctorQueueFromSupabase().then((cloudQueue) => {
+        if (!cloudQueue.length) return;
+        setQueueList((prev) => {
+          const byId = new Map(prev.map((patient) => [patient.id, patient]));
+          cloudQueue.forEach((patient) => byId.set(patient.id, patient));
+          return Array.from(byId.values());
+        });
+      }).catch((error) => console.error("Failed to refresh cloud doctor queue", error));
     };
 
     window.addEventListener("focus", refreshQueue);

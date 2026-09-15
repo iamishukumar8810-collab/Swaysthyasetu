@@ -152,6 +152,20 @@ create table if not exists public.ai_intake_summaries (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.doctor_queue (
+  id uuid primary key,
+  patient_id uuid not null references public.profiles(id) on delete cascade,
+  doctor_id uuid not null references public.profiles(id) on delete cascade,
+  patient_name text not null default '',
+  payload jsonb not null default '{}'::jsonb,
+  summary_pdf_url text,
+  summary_pdf_name text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists doctor_queue_doctor_idx on public.doctor_queue(doctor_id, created_at desc);
+
 create table if not exists public.health_metrics (
   id uuid primary key default gen_random_uuid(),
   patient_id uuid not null references public.profiles(id) on delete cascade,
@@ -274,6 +288,7 @@ alter table public.medications enable row level security;
 alter table public.medication_adherence enable row level security;
 alter table public.medical_reports enable row level security;
 alter table public.ai_intake_summaries enable row level security;
+alter table public.doctor_queue enable row level security;
 alter table public.health_metrics enable row level security;
 alter table public.conversations enable row level security;
 alter table public.conversation_members enable row level security;
@@ -323,6 +338,12 @@ drop policy if exists reports_owner_or_doctor on public.medical_reports;
 create policy reports_owner_or_doctor on public.medical_reports for all using (patient_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid() or uploaded_by = auth.uid());
 drop policy if exists intake_owner_or_doctor on public.ai_intake_summaries;
 create policy intake_owner_or_doctor on public.ai_intake_summaries for all using (patient_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid());
+drop policy if exists doctor_queue_patient_insert on public.doctor_queue;
+create policy doctor_queue_patient_insert on public.doctor_queue for insert with check (patient_id = auth.uid());
+drop policy if exists doctor_queue_patient_read on public.doctor_queue;
+create policy doctor_queue_patient_read on public.doctor_queue for select using (patient_id = auth.uid() or doctor_id = auth.uid());
+drop policy if exists doctor_queue_doctor_update on public.doctor_queue;
+create policy doctor_queue_doctor_update on public.doctor_queue for update using (doctor_id = auth.uid()) with check (doctor_id = auth.uid());
 drop policy if exists metrics_owner_or_doctor on public.health_metrics;
 create policy metrics_owner_or_doctor on public.health_metrics for all using (patient_id = auth.uid() or public.is_assigned_doctor(patient_id)) with check (patient_id = auth.uid());
 drop policy if exists conversation_member_read on public.conversations;

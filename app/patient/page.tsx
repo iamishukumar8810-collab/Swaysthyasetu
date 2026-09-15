@@ -55,7 +55,7 @@ import {
   ConsultationVisit, 
   MedicalReport 
 } from "@/lib/patient-data";
-import { DoctorProfile, getDoctors, getPublishedDoctorsFromSupabase, subscribeToDoctors, addPatientToQueue } from "@/lib/doctorStore";
+import { DoctorProfile, getDoctors, getPublishedDoctorsFromSupabase, subscribeToDoctors, addPatientToQueue, saveDoctorQueueEntryToSupabase } from "@/lib/doctorStore";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { generateClinicalSummaryPDF, downloadPDF } from "@/lib/pdfGenerator";
 import { AIIntakeSummary, saveAIIntakeSummary } from "@/lib/aiIntakeStore";
@@ -487,7 +487,7 @@ export default function PatientDashboardPage() {
 
       // 5. Save to local reactive database (LocalStorage) & Doctor OPD Queue
       saveAIIntakeSummary(summary);
-      addPatientToQueue({
+      const queueEntry = {
         id: summary.id,
         userId: userId,
         name: summary.patientName,
@@ -511,7 +511,16 @@ export default function PatientDashboardPage() {
         summaryPdfUrl: pdf.dataUrl,
         summaryPdfName: pdf.fileName,
         submittedAt: now,
-      });
+      };
+      addPatientToQueue(queueEntry);
+      if (assignedDoctor?.userId || assignedDoctor?.id) {
+        try {
+          await saveDoctorQueueEntryToSupabase(queueEntry);
+        } catch (cloudErr) {
+          console.error("Failed to save case to cloud doctor queue", cloudErr);
+          throw cloudErr;
+        }
+      }
 
       // 6. Record in patient's consultations & next appointment
       const newConsultationVisit: ConsultationVisit = {

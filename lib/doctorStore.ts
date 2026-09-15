@@ -386,6 +386,41 @@ export function addPatientToQueue(patient: QueuedPatient | any) {
   }
 }
 
+export async function saveDoctorQueueEntryToSupabase(patient: QueuedPatient): Promise<void> {
+  if (!isSupabaseConfigured || !patient.assignedDoctorId) return;
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error(authError?.message || "Patient Google session not found.");
+  if (authData.user.id !== patient.userId) throw new Error("Patient session does not match the submitted case.");
+
+  const { error } = await supabase.from("doctor_queue").upsert({
+    id: patient.id,
+    patient_id: patient.userId,
+    doctor_id: patient.assignedDoctorId,
+    patient_name: patient.name,
+    payload: patient,
+    summary_pdf_url: patient.summaryPdfUrl || null,
+    summary_pdf_name: patient.summaryPdfName || null,
+  }, { onConflict: "id" });
+  if (error) throw new Error(error.message || "Could not send the case to the doctor queue.");
+}
+
+export async function getDoctorQueueFromSupabase(): Promise<QueuedPatient[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) return [];
+  const { data, error } = await supabase
+    .from("doctor_queue")
+    .select("payload, summary_pdf_url, summary_pdf_name")
+    .eq("doctor_id", authData.user.id)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message || "Could not load the doctor queue.");
+  return (data || []).map((row: any) => ({
+    ...row.payload,
+    summaryPdfUrl: row.summary_pdf_url || row.payload?.summaryPdfUrl,
+    summaryPdfName: row.summary_pdf_name || row.payload?.summaryPdfName,
+  }));
+}
+
 export function subscribeToDoctorQueue(callback: (queue: QueuedPatient[]) => void): () => void {
   if (typeof window === "undefined") return () => {};
 
