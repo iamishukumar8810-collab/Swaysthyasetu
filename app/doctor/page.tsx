@@ -53,6 +53,7 @@ import {
   DoctorProfile,
   getCurrentDoctorProfile,
   saveCurrentDoctorProfile,
+  publishDoctorProfileToSupabase,
   unpublishCurrentDoctorProfile,
   getDoctorQueue,
   subscribeToDoctorQueue,
@@ -302,7 +303,10 @@ export default function DoctorWorkspacePage() {
 
     const matchesDoctor =
       queueDoctorFilter === "All" ||
-      (queueDoctorFilter === "Me" && currentDoctor.name && item.assignedDoctorName === currentDoctor.name) ||
+      (queueDoctorFilter === "Me" && (
+        (currentDoctor.id && item.assignedDoctorId === currentDoctor.id) ||
+        (currentDoctor.name && item.assignedDoctorName === currentDoctor.name)
+      )) ||
       item.assignedDoctorName === queueDoctorFilter;
 
     const matchesStatus =
@@ -443,6 +447,25 @@ export default function DoctorWorkspacePage() {
     });
     return () => {
       unsubQueue && unsubQueue();
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshQueue = () => {
+      const queue = getDoctorQueue();
+      if (!queue.length) return;
+      setQueueList((prev) => {
+        const byId = new Map(prev.map((patient) => [patient.id, patient]));
+        queue.forEach((patient) => byId.set(patient.id, patient));
+        return Array.from(byId.values());
+      });
+    };
+
+    window.addEventListener("focus", refreshQueue);
+    document.addEventListener("visibilitychange", refreshQueue);
+    return () => {
+      window.removeEventListener("focus", refreshQueue);
+      document.removeEventListener("visibilitychange", refreshQueue);
     };
   }, []);
 
@@ -600,7 +623,7 @@ export default function DoctorWorkspacePage() {
     setShowAIIntakeModal(false);
   };
 
-  const handlePublishDoctorProfile = (e: React.FormEvent) => {
+  const handlePublishDoctorProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentDoctor.name.trim() || !currentDoctor.hospital.trim()) {
       triggerToast("Please enter doctor name and hospital/clinic.");
@@ -638,6 +661,12 @@ export default function DoctorWorkspacePage() {
 
     const saved = saveCurrentDoctorProfile(updatedProfile);
     setCurrentDoctor(saved);
+    try {
+      await publishDoctorProfileToSupabase(saved);
+    } catch (error) {
+      triggerToast(error instanceof Error ? error.message : "Cloud publish failed. Profile saved locally only.");
+      return;
+    }
     triggerToast("Your Doctor Profile has been published! Patients can now see your card on the consultation page.");
   };
 

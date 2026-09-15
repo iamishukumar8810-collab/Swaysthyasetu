@@ -1,7 +1,10 @@
 "use client";
 
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+
 export interface DoctorProfile {
   id: string;
+  userId?: string;
   name: string;
   specialty: string; // e.g. "Ayurveda", "Panchakarma", "Yoga & Naturopathy", "Unani", "Siddha", "Homeopathy"
   subSpecialty: string; // e.g. "Kayachikitsa & Nadi Pariksha"
@@ -229,6 +232,78 @@ export function getDoctors(): DoctorProfile[] {
     console.error("Error reading doctors from localStorage", err);
     return [];
   }
+}
+
+function mapSupabaseDoctor(row: any): DoctorProfile {
+  return {
+    id: row.user_id,
+    userId: row.user_id,
+    name: row.full_name || row.name || "AYUSH Doctor",
+    specialty: row.specialty || "Ayurveda",
+    subSpecialty: row.sub_specialty || "AYUSH Specialist",
+    qualifications: row.qualifications || "BAMS, MD (Ayurveda)",
+    experienceYears: Number(row.experience_years) || 0,
+    hospital: row.hospital || "AYUSH Clinic",
+    location: row.location || "India",
+    rating: Number(row.rating) || 4.9,
+    reviewsCount: Number(row.reviews_count) || 0,
+    consultationFee: Number(row.consultation_fee) || 500,
+    availableTimings: row.available_timings || "Mon - Sat (10:00 AM - 04:00 PM)",
+    nextAvailableSlot: row.next_available_slot || "Today, 4:00 PM",
+    languages: row.languages || [],
+    expertise: row.expertise || [],
+    about: row.about || "Registered AYUSH Medical Practitioner.",
+    phone: row.phone || "",
+    registrationNumber: row.registration_number || "",
+    avatarUrl: row.avatar_url,
+    isAvailableToday: row.is_available_today ?? true,
+    isAyushVerified: row.is_ayush_verified ?? true,
+    isPublished: Boolean(row.is_published),
+    isSeedDoctor: false,
+    createdAt: row.created_at || new Date().toISOString(),
+  };
+}
+
+export async function getPublishedDoctorsFromSupabase(): Promise<DoctorProfile[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from("doctor_profiles")
+    .select("*, profiles(full_name, phone, avatar_url)")
+    .eq("is_published", true);
+  if (error) {
+    console.error("Failed to load published doctors from Supabase", error);
+    return [];
+  }
+  return (data || []).map((row: any) => mapSupabaseDoctor({
+    ...row,
+    full_name: row.profiles?.full_name,
+    phone: row.profiles?.phone,
+    avatar_url: row.profiles?.avatar_url,
+  }));
+}
+
+export async function publishDoctorProfileToSupabase(doctor: DoctorProfile): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error("Please sign in before publishing your doctor profile.");
+
+  const { error } = await supabase.from("doctor_profiles").upsert({
+    user_id: authData.user.id,
+    specialty: doctor.specialty,
+    sub_specialty: doctor.subSpecialty,
+    qualifications: doctor.qualifications,
+    experience_years: doctor.experienceYears,
+    hospital: doctor.hospital,
+    location: doctor.location,
+    consultation_fee: doctor.consultationFee,
+    available_timings: doctor.availableTimings,
+    languages: doctor.languages,
+    expertise: doctor.expertise,
+    about: doctor.about,
+    registration_number: doctor.registrationNumber,
+    is_published: true,
+  }, { onConflict: "user_id" });
+  if (error) throw new Error(error.message || "Could not publish doctor profile.");
 }
 
 /**

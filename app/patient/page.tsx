@@ -55,7 +55,7 @@ import {
   ConsultationVisit, 
   MedicalReport 
 } from "@/lib/patient-data";
-import { DoctorProfile, getDoctors, subscribeToDoctors, addPatientToQueue } from "@/lib/doctorStore";
+import { DoctorProfile, getDoctors, getPublishedDoctorsFromSupabase, subscribeToDoctors, addPatientToQueue } from "@/lib/doctorStore";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { generateClinicalSummaryPDF, downloadPDF } from "@/lib/pdfGenerator";
 import { AIIntakeSummary, saveAIIntakeSummary } from "@/lib/aiIntakeStore";
@@ -106,6 +106,12 @@ export default function PatientDashboardPage() {
       const initialDocs = getDoctors();
       setDoctors(initialDocs);
       setSelectedDoctorForCase(initialDocs[0] || null);
+      void getPublishedDoctorsFromSupabase().then((cloudDocs) => {
+        if (cloudDocs.length > 0) {
+          setDoctors(cloudDocs);
+          setSelectedDoctorForCase(cloudDocs[0]);
+        }
+      });
       const unsub = subscribeToDoctors((updated) => {
         const docsList = updated && updated.length > 0 ? updated : getDoctors();
         setDoctors(docsList);
