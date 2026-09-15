@@ -368,7 +368,17 @@ values ('medical-reports', 'medical-reports', false)
 on conflict (id) do nothing;
 
 drop policy if exists medical_reports_storage_read on storage.objects;
-create policy medical_reports_storage_read on storage.objects for select using (bucket_id = 'medical-reports' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy medical_reports_storage_read on storage.objects for select using (
+  bucket_id = 'medical-reports'
+  and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or exists (
+      select 1 from public.doctor_queue
+      where doctor_queue.doctor_id = auth.uid()
+        and doctor_queue.patient_id::text = (storage.foldername(name))[1]
+    )
+  )
+);
 drop policy if exists medical_reports_storage_insert on storage.objects;
 create policy medical_reports_storage_insert on storage.objects for insert with check (bucket_id = 'medical-reports' and (storage.foldername(name))[1] = auth.uid()::text);
 drop policy if exists medical_reports_storage_delete on storage.objects;

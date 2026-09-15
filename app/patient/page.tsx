@@ -75,7 +75,7 @@ export default function PatientDashboardPage() {
   const [aiSymptoms, setAiSymptoms] = useState<string[]>([]);
   const [aiSeverity, setAiSeverity] = useState(4);
   const [aiDescription, setAiDescription] = useState("");
-  const [aiReports, setAiReports] = useState<Array<{ id: string; name: string }>>([]);
+  const [aiReports, setAiReports] = useState<Array<{ id: string; name: string; storagePath?: string; url?: string; type?: string; size?: number }>>([]);
   const [aiMedicines, setAiMedicines] = useState<Array<{ name: string; dose: string; frequency: string }>>([]);
   const [aiMedicineDraft, setAiMedicineDraft] = useState({ name: "", dose: "", frequency: "Once a day" });
   const [isAiSubmitting, setIsAiSubmitting] = useState(false);
@@ -325,18 +325,22 @@ export default function PatientDashboardPage() {
 
     const reportId = crypto.randomUUID();
     let uploadedToCloud = false;
+    let storagePath = "";
+    let uploadedUrl = "";
 
     // Optional cloud backup if Supabase is active and user is signed in
     if (isSupabaseConfigured) {
       try {
         const { data: userData } = await supabase.auth.getUser();
         if (userData?.user) {
-          const storagePath = `${userData.user.id}/${reportId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+          storagePath = `${userData.user.id}/${reportId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
           const { error: uploadError } = await supabase.storage
             .from("medical-reports")
             .upload(storagePath, file, { contentType: file.type, upsert: false });
 
           if (!uploadError) {
+            const { data: signed } = await supabase.storage.from("medical-reports").createSignedUrl(storagePath, 60 * 60);
+            uploadedUrl = signed?.signedUrl || "";
             await supabase.from("medical_reports").insert({
               id: reportId,
               patient_id: userData.user.id,
@@ -356,7 +360,14 @@ export default function PatientDashboardPage() {
     }
 
     // Always accept the report locally so the user is never blocked
-    setAiReports((current) => [...current, { id: reportId, name: file.name }]);
+    setAiReports((current) => [...current, {
+      id: reportId,
+      name: file.name,
+      storagePath: storagePath || undefined,
+      url: uploadedUrl || undefined,
+      type: file.type,
+      size: file.size,
+    }]);
     triggerToast(uploadedToCloud ? "Report uploaded to cloud successfully." : "Report added successfully.");
   };
 
@@ -472,9 +483,10 @@ export default function PatientDashboardPage() {
         ...aiReports.map((report) => ({
           id: report.id,
           name: report.name,
-          type: "PDF",
-          size: "1.2 MB",
-          url: pdf.dataUrl,
+          type: report.type === "application/pdf" ? "PDF" : "Image",
+          size: report.size ? `${Math.round(report.size / 1024)} KB` : "",
+          url: report.url || report.storagePath || undefined,
+          storagePath: report.storagePath,
           date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
         })),
         {

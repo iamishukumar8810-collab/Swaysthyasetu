@@ -36,6 +36,7 @@ export interface QueuedPatientReport {
   type: string;
   size?: string;
   url?: string;
+  storagePath?: string;
   date?: string;
   isGeneratedSummary?: boolean;
 }
@@ -414,10 +415,20 @@ export async function getDoctorQueueFromSupabase(): Promise<QueuedPatient[]> {
     .eq("doctor_id", authData.user.id)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message || "Could not load the doctor queue.");
-  return (data || []).map((row: any) => ({
+  const queue = (data || []).map((row: any) => ({
     ...row.payload,
     summaryPdfUrl: row.summary_pdf_url || row.payload?.summaryPdfUrl,
     summaryPdfName: row.summary_pdf_name || row.payload?.summaryPdfName,
+  }));
+  return Promise.all(queue.map(async (patient) => {
+    const reports = await Promise.all((patient.reports || []).map(async (report: QueuedPatientReport) => {
+      if (!report.storagePath) return report;
+      const { data: signed } = await supabase.storage
+        .from("medical-reports")
+        .createSignedUrl(report.storagePath, 60 * 60);
+      return { ...report, url: signed?.signedUrl || report.url };
+    }));
+    return { ...patient, reports };
   }));
 }
 
