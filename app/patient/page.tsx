@@ -328,38 +328,47 @@ export default function PatientDashboardPage() {
     let storagePath = "";
     let uploadedUrl = "";
 
-    // Optional cloud backup if Supabase is active and user is signed in
-    if (isSupabaseConfigured) {
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user) {
-          storagePath = `${userData.user.id}/${reportId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
-          const { error: uploadError } = await supabase.storage
-            .from("medical-reports")
-            .upload(storagePath, file, { contentType: file.type, upsert: false });
-
-          if (!uploadError) {
-            const { data: signed } = await supabase.storage.from("medical-reports").createSignedUrl(storagePath, 60 * 60);
-            uploadedUrl = signed?.signedUrl || "";
-            await supabase.from("medical_reports").insert({
-              id: reportId,
-              patient_id: userData.user.id,
-              uploaded_by: userData.user.id,
-              name: file.name,
-              document_type: file.type === "application/pdf" ? "PDF" : "Image",
-              storage_path: storagePath,
-              file_size_bytes: file.size,
-              mime_type: file.type,
-            });
-            uploadedToCloud = true;
-          }
-        }
-      } catch (err) {
-        console.warn("Cloud upload skipped, using local fallback", err);
-      }
+    if (!isSupabaseConfigured) {
+      triggerToast("Supabase is not configured. Cannot save this report.");
+      return;
     }
 
-    // Always accept the report locally so the user is never blocked
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        triggerToast(userError?.message || "Please sign in with Google before uploading a report.");
+        return;
+      }
+
+      storagePath = `${userData.user.id}/${reportId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+      const { error: uploadError } = await supabase.storage
+        .from("medical-reports")
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw new Error(uploadError.message || "Storage upload failed.");
+
+      const { data: signed, error: signedError } = await supabase.storage
+        .from("medical-reports")
+        .createSignedUrl(storagePath, 60 * 60);
+      if (signedError) throw new Error(signedError.message || "Could not create report download link.");
+      uploadedUrl = signed?.signedUrl || "";
+
+      const { error: reportError } = await supabase.from("medical_reports").insert({
+        id: reportId,
+        patient_id: userData.user.id,
+        uploaded_by: userData.user.id,
+        name: file.name,
+        document_type: file.type === "application/pdf" ? "PDF" : "Image",
+        storage_path: storagePath,
+        file_size_bytes: file.size,
+        mime_type: file.type,
+      });
+      if (reportError) throw new Error(reportError.message || "Could not save report metadata.");
+      uploadedToCloud = true;
+    } catch (error) {
+      triggerToast(error instanceof Error ? error.message : "Report upload failed.");
+      return;
+    }
+
     setAiReports((current) => [...current, {
       id: reportId,
       name: file.name,
@@ -368,7 +377,7 @@ export default function PatientDashboardPage() {
       type: file.type,
       size: file.size,
     }]);
-    triggerToast(uploadedToCloud ? "Report uploaded to cloud successfully." : "Report added successfully.");
+    triggerToast(uploadedToCloud ? "Report uploaded to cloud successfully." : "Report upload failed.");
   };
 
   const submitAiCase = async (doctorToAssign?: DoctorProfile | null) => {
