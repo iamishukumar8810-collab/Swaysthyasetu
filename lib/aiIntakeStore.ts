@@ -9,6 +9,9 @@ export interface AIIntakeSummary {
   duration: string;
   associatedSymptoms?: string;
   currentMedicines?: string;
+  reportedSymptoms?: string[];
+  uploadedReports?: string[];
+  medicines?: string[];
   predictedDosha: string;
   agniAssessment: string;
   isRedFlag: boolean;

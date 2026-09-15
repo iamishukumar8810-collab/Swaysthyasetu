@@ -38,6 +38,15 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
   const redReasons = summary.redFlagReasons && summary.redFlagReasons.length > 0
     ? summary.redFlagReasons.join(", ")
     : "None (Standard Priority)";
+  const reportedSymptoms = summary.reportedSymptoms?.length
+    ? summary.reportedSymptoms.join(", ")
+    : complaint;
+  const medicines = summary.medicines?.length
+    ? summary.medicines.join("; ")
+    : summary.currentMedicines || "None reported";
+  const uploadedReports = summary.uploadedReports?.length
+    ? summary.uploadedReports.join(", ")
+    : "No reports uploaded";
 
   const dateStr = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -54,7 +63,7 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
   const meaningfulHistory = rawHistory.filter((h) => Boolean(h.text)).slice(-7);
 
   const transcriptPDFLines: string[] = [];
-  let curY = 330;
+  let curY = 220;
 
   if (meaningfulHistory.length > 0) {
     meaningfulHistory.forEach((item) => {
@@ -80,7 +89,7 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
       "0.22 0.25 0.32 rg",
       "BT",
       "/F1 8.5 Tf",
-      "35 330 Td",
+      "35 220 Td",
       `(${sanitizePDFText(`Recorded Complaint: "${complaint}" | Severity: ${severity} | Duration: ${duration}`)}) Tj`,
       "ET"
     );
@@ -209,6 +218,27 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     `(${sanitizePDFText(agni)}) Tj`,
     "ET",
 
+    // Patient-submitted symptoms, medicines, and uploaded report names
+    "0.95 0.98 0.96 rg",
+    "35 275 525 95 re",
+    "f",
+    "0.8 0.89 0.84 RG",
+    "35 275 525 95 re",
+    "S",
+    "0.05 0.49 0.29 rg",
+    "BT",
+    "/F2 10.5 Tf",
+    "50 350 Td",
+    "(PATIENT-SUBMITTED INFORMATION) Tj",
+    "ET",
+    "0.1 0.15 0.12 rg",
+    "BT",
+    "/F1 8.5 Tf",
+    `50 330 Td (${sanitizePDFText(`Symptoms: ${reportedSymptoms}`)}) Tj`,
+    `50 314 Td (${sanitizePDFText(`Medicines: ${medicines}`)}) Tj`,
+    `50 298 Td (${sanitizePDFText(`Uploaded reports: ${uploadedReports}`)}) Tj`,
+    "ET",
+
     // Priority / Red Flag Banner
     isRed ? "0.99 0.92 0.92 rg" : "0.93 0.98 0.95 rg",
     "35 385 525 42 re",
@@ -227,11 +257,11 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     "0.05 0.49 0.29 rg",
     "BT",
     "/F2 10.5 Tf",
-    "35 358 Td",
+    "35 240 Td",
     "(CONSULTATION ANAMNESIS & COMMUNICATION TRANSCRIPT) Tj",
     "ET",
     "0.8 0.89 0.84 RG",
-    "35 348 m 560 348 l",
+    "35 230 m 560 230 l",
     "S",
 
     ...transcriptPDFLines,
