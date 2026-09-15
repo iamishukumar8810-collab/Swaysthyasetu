@@ -308,6 +308,11 @@ export default function DoctorWorkspacePage() {
       setCurrentDoctor(saved);
       setExpertiseInput(saved.expertise.join(", "));
       setLanguagesInput(saved.languages.join(", "));
+      if (saved.isPublished) {
+        void publishDoctorProfileToSupabase(saved).catch((error) => {
+          console.error("Failed to sync published doctor profile", error);
+        });
+      }
     }
     const unsubQueue = subscribeToDoctorQueue((queue) => {
       if (!queue || queue.length === 0) return;
