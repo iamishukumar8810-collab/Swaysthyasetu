@@ -164,14 +164,13 @@ function mapSupabaseDoctor(row: any): DoctorProfile {
 }
 
 export async function getPublishedDoctorsFromSupabase(): Promise<DoctorProfile[]> {
-  if (!isSupabaseConfigured) return [];
+  if (!isSupabaseConfigured) throw new Error("Supabase is not configured on this deployment.");
   const { data, error } = await supabase
     .from("doctor_profiles")
     .select("*")
     .eq("is_published", true);
   if (error) {
-    console.error("Failed to load published doctors from Supabase", error);
-    return [];
+    throw new Error(error.message || "Could not load published doctors.");
   }
   return (data || []).map((row: any) => mapSupabaseDoctor(row));
 }
@@ -211,6 +210,14 @@ export async function publishDoctorProfileToSupabase(doctor: DoctorProfile): Pro
     is_published: true,
   }, { onConflict: "user_id" });
   if (error) throw new Error(error.message || "Could not publish doctor profile.");
+
+  const { data: savedProfile, error: verifyError } = await supabase
+    .from("doctor_profiles")
+    .select("user_id, is_published")
+    .eq("user_id", authData.user.id)
+    .maybeSingle();
+  if (verifyError) throw new Error(verifyError.message || "Could not verify published doctor profile.");
+  if (!savedProfile?.is_published) throw new Error("Doctor profile was not saved as published.");
 }
 
 /**

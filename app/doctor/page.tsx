@@ -310,7 +310,7 @@ export default function DoctorWorkspacePage() {
       setLanguagesInput(saved.languages.join(", "));
       if (saved.isPublished) {
         void publishDoctorProfileToSupabase(saved).catch((error) => {
-          console.error("Failed to sync published doctor profile", error);
+          triggerToast(error instanceof Error ? error.message : "Cloud profile sync failed.");
         });
       }
     }

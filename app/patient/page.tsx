@@ -111,6 +111,8 @@ export default function PatientDashboardPage() {
           setDoctors(cloudDocs);
           setSelectedDoctorForCase(cloudDocs[0]);
         }
+      }).catch((error) => {
+        console.error("Failed to load published doctors", error);
       });
       const unsub = subscribeToDoctors((updated) => {
         const docsList = updated && updated.length > 0 ? updated : getDoctors();
