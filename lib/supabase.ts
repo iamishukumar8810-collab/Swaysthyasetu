@@ -1,10 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
-const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const defaultSupabaseUrl = "https://nessqcrpkbtaspiauoae.supabase.co";
+const defaultSupabasePublishableKey = "sb_publishable_VZd4atyzs6LSlR0wLdi67w_EwUH0M6f";
+
+const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || defaultSupabaseUrl;
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  "";
+  defaultSupabasePublishableKey;
 
 const isValidSupabaseUrl = (value: string) => {
   try {
