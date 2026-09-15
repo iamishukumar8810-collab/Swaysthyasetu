@@ -105,15 +105,13 @@ export default function PatientDashboardPage() {
     try {
       const initialDocs = getDoctors();
       setDoctors(initialDocs);
-      if (initialDocs.length > 0) {
-        setSelectedDoctorForCase(initialDocs[0]);
-      }
+      setSelectedDoctorForCase(initialDocs[0] || null);
       const unsub = subscribeToDoctors((updated) => {
         const docsList = updated && updated.length > 0 ? updated : getDoctors();
         setDoctors(docsList);
-        if (docsList.length > 0) {
-          setSelectedDoctorForCase((curr) => curr || docsList[0]);
-        }
+        setSelectedDoctorForCase((curr) =>
+          docsList.find((doctor) => doctor.id === curr?.id) || docsList[0] || null
+        );
       });
       return () => unsub && unsub();
     } catch (e) {

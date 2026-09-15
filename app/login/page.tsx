@@ -69,6 +69,18 @@ export default function LoginPage() {
   const [showRoleOverlay, setShowRoleOverlay] = useState(false);
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const redirectToSavedRole = (role?: string | null) => {
+    if (role === "doctor") {
+      window.location.href = "/doctor";
+      return true;
+    }
+    if (role === "patient") {
+      window.location.href = "/patient";
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -87,9 +99,13 @@ export default function LoginPage() {
       try {
         const { data } = await supabase.auth.getSession();
         if (active && data.session?.user) {
-          setGoogleUser(data.session.user);
-          setEmail(data.session.user.email || "");
-          setShowRoleOverlay(true);
+          const user = data.session.user;
+          const savedRole = user.user_metadata?.app_role;
+          if (!redirectToSavedRole(savedRole)) {
+            setGoogleUser(user);
+            setEmail(user.email || "");
+            setShowRoleOverlay(true);
+          }
         }
       } catch (err) {
         console.error("Session check error", err);
@@ -104,10 +120,13 @@ export default function LoginPage() {
         data: { subscription },
       } = supabase.auth.onAuthStateChange((event, session) => {
         if (active && (event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
-          setGoogleUser(session.user);
-          setEmail(session.user.email || "");
-          setShowRoleOverlay(true);
-          triggerToast(`Google sign-in successful! Please select your role.`);
+          const savedRole = session.user.user_metadata?.app_role;
+          if (!redirectToSavedRole(savedRole)) {
+            setGoogleUser(session.user);
+            setEmail(session.user.email || "");
+            setShowRoleOverlay(true);
+            triggerToast(`Google sign-in successful! Please select your role.`);
+          }
         }
       });
 
@@ -412,6 +431,26 @@ export default function LoginPage() {
     }
   };
 
+  const handleRoleSelection = async (role: "patient" | "doctor") => {
+    if (googleUser && isSupabaseConfigured) {
+      const { error } = await supabase.auth.updateUser({
+        data: { app_role: role },
+      });
+      if (error) {
+        triggerToast(error.message || "Could not save your role.");
+        return;
+      }
+    } else if (typeof window !== "undefined") {
+      window.localStorage.setItem("swasthya-setu-role", role);
+    }
+
+    setShowRoleOverlay(false);
+    triggerToast(role === "doctor" ? "Opening Doctor Portal…" : "Opening Patient Portal…");
+    setTimeout(() => {
+      window.location.href = role === "doctor" ? "/doctor" : "/patient";
+    }, 300);
+  };
+
   return (
     <div className="min-h-screen bg-[#DDEAE2] flex items-center justify-center p-0 sm:p-6 font-sans select-none relative">
       {/* Back to website floating link on desktop */}
@@ -520,6 +559,22 @@ export default function LoginPage() {
           </div>
 
           {/* Form Block */}
+          <div className="mt-8 sm:mt-10">
+            <p className="text-center text-sm text-[#7A8B84] mb-4">
+              Sign in securely with your Google account.
+            </p>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleGoogleAuth}
+              className="w-full h-[54px] rounded-[14px] text-[15px] font-semibold text-[#123B2C] bg-white border-[1.5px] border-[#CFEBDB] hover:bg-[#F3FAF6] hover:border-[#0E7C4A] disabled:opacity-60 shadow-[0_10px_22px_-14px_rgba(14,124,74,0.4)] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleIcon className="w-5 h-5" />}
+              <span>Continue with Google</span>
+            </button>
+          </div>
+
+          <div className="hidden">
           {authMode === "phone" ? (
             step === "phone" ? (
               <div className="mt-8 sm:mt-10">
@@ -830,6 +885,7 @@ export default function LoginPage() {
               </button>
             </div>
           )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -896,8 +952,7 @@ export default function LoginPage() {
               {/* LEFT CARD: PATIENT / KIOSK */}
               <div 
                 onClick={() => {
-                  triggerToast("Entering Patient Kiosk…");
-                  setTimeout(() => window.location.href = "/patient", 500);
+                  void handleRoleSelection("patient");
                 }}
                 className="group rounded-3xl p-6 bg-[#EAF7EF]/70 dark:bg-slate-800/60 border-2 border-[#CFEBDB] dark:border-slate-700 hover:border-[#0E7C4A] dark:hover:border-emerald-500 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col justify-between"
               >
@@ -946,8 +1001,7 @@ export default function LoginPage() {
               {/* RIGHT CARD: DOCTOR / PHYSICIAN */}
               <div 
                 onClick={() => {
-                  triggerToast("Entering Doctor OPD Portal…");
-                  setTimeout(() => window.location.href = "/doctor", 500);
+                  void handleRoleSelection("doctor");
                 }}
                 className="group rounded-3xl p-6 bg-teal-50/70 dark:bg-slate-800/60 border-2 border-teal-200 dark:border-slate-700 hover:border-teal-600 dark:hover:border-teal-400 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 cursor-pointer flex flex-col justify-between"
               >
@@ -993,22 +1047,6 @@ export default function LoginPage() {
                 </button>
               </div>
 
-            </div>
-
-            {/* Change account / Back option */}
-            <div className="text-center mt-6 relative z-10">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRoleOverlay(false);
-                  if (authMode === "phone") {
-                    setStep("phone");
-                  }
-                }}
-                className="text-xs text-[#7A8B84] hover:text-[#0E7C4A] font-medium transition-colors cursor-pointer"
-              >
-                ← Sign in with a different account
-              </button>
             </div>
 
           </div>

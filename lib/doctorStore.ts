@@ -186,12 +186,11 @@ function isSeedDoctorId(id: string): boolean {
 }
 
 /**
- * Retrieve all published doctors from localStorage.
- * When a real doctor publishes their profile via the Doctor Listing page,
- * ONLY the real published doctor(s) are returned instead of the hardcoded seed doctors.
+ * Retrieve only real published doctors from localStorage.
+ * Seed doctors are kept for legacy preview data but are never exposed in the patient directory.
  */
 export function getDoctors(): DoctorProfile[] {
-  if (typeof window === "undefined") return DEFAULT_AYUSH_DOCTORS;
+  if (typeof window === "undefined") return [];
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     let list: DoctorProfile[] = [];
@@ -225,11 +224,10 @@ export function getDoctors(): DoctorProfile[] {
       return realPublishedDoctors;
     }
 
-    // If no real doctor has been published yet, return DEFAULT_AYUSH_DOCTORS as initial preview
-    return DEFAULT_AYUSH_DOCTORS;
+    return [];
   } catch (err) {
     console.error("Error reading doctors from localStorage", err);
-    return DEFAULT_AYUSH_DOCTORS;
+    return [];
   }
 }
 
