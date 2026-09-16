@@ -88,6 +88,10 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
         return { name, dose: dose || "-", frequency: frequency || "As directed" };
       });
 
+  // FCFS Token & Queue Slot
+  const tokenNumber = summary.tokenNumber || `AYUH-${summary.id.slice(0, 4).toUpperCase()}`;
+  const queuePosition = summary.queuePosition || 1;
+
   const dateStr = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -104,14 +108,14 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
 
   const streamLines: string[] = [
     // -------------------------------------------------------------
-    // 1. HEADER BANNER (Emerald #0E7C4A)
+    // 1. HEADER BANNER (Emerald #0E7C4A) WITH FCFS TOKEN BADGE
     // -------------------------------------------------------------
     "0.05 0.49 0.29 rg",
     "35 765 525 55 re",
     "f",
     "1 1 1 rg",
     "BT",
-    "/F2 14 Tf",
+    "/F2 13 Tf",
     "48 802 Td",
     "(SWASTHYA SETU - AYUSH CLINICAL INTAKE REPORT) Tj",
     "ET",
@@ -121,9 +125,36 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     "(Ministry of AYUSH Integrated Digital Hospital System | Patient Pre-Consultation Summary) Tj",
     "ET",
     "BT",
-    "/F1 8 Tf",
+    "/F1 7.5 Tf",
     "48 773 Td",
-    `(${sanitizePDFText(`Report Generated: ${dateStr}, ${timeStr}   |   Case ID: ${summary.id.slice(0, 8).toUpperCase()}   |   Provider: ${summary.aiProvider || "Swasthya AYUSH Clinical Engine"}`)}) Tj`,
+    `(${sanitizePDFText(`Report Generated: ${dateStr}, ${timeStr}   |   Case ID: ${summary.id.slice(0, 8).toUpperCase()}`)}) Tj`,
+    "ET",
+
+    // FCFS Token Badge in Header (Right Corner)
+    "1 1 1 rg",
+    "435 770 115 45 re",
+    "f",
+    "0.8 0.89 0.84 RG",
+    "1 w",
+    "435 770 115 45 re",
+    "S",
+    "0.4 0.45 0.4 rg",
+    "BT",
+    "/F2 6.5 Tf",
+    "442 804 Td",
+    "(OPD TOKEN (FCFS QUEUE)) Tj",
+    "ET",
+    "0.05 0.49 0.29 rg",
+    "BT",
+    "/F2 12 Tf",
+    "442 788 Td",
+    `(${sanitizePDFText(tokenNumber)}) Tj`,
+    "ET",
+    "0.25 0.35 0.3 rg",
+    "BT",
+    "/F1 6.5 Tf",
+    "442 776 Td",
+    `(${sanitizePDFText(`Queue Slot #${queuePosition} | FCFS`)}) Tj`,
     "ET",
 
     // -------------------------------------------------------------
@@ -146,11 +177,11 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     "BT",
     "/F1 8.5 Tf",
     "48 724 Td",
-    `(${sanitizePDFText(`Patient: ${patientName} (${patientAge}, ${patientGender})`)}) Tj`,
+    `(${sanitizePDFText(`Patient: ${patientName} (${patientAge}, ${patientGender})   |   Token: ${tokenNumber}`)}) Tj`,
     "48 709 Td",
-    `(${sanitizePDFText(`Contact: ${patientPhone}  |  Patient ID: ${patientId}`)}) Tj`,
+    `(${sanitizePDFText(`Contact: ${patientPhone}   |   Patient ID: ${patientId}`)}) Tj`,
     "48 694 Td",
-    `(${sanitizePDFText(`Status: ${intakeStatus}  |  Case Readiness: ${readiness}`)}) Tj`,
+    `(${sanitizePDFText(`FCFS Queue Order: Slot #${queuePosition}   |   Status: ${intakeStatus} (${readiness})`)}) Tj`,
     "ET",
     "BT",
     "/F1 8.5 Tf",

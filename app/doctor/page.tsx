@@ -643,16 +643,21 @@ export default function DoctorWorkspacePage() {
   const [notifications, setNotifications] = useState<DoctorNotification[]>([]);
 
   useEffect(() => {
-    setNotifications(getDoctorNotifications(currentDoctor.id));
+    const refreshNotifications = () => {
+      setNotifications(getDoctorNotifications(currentDoctor.id, currentDoctor.name));
+    };
+
+    refreshNotifications();
+
     const unsubNotifs = subscribeToDoctorNotifications((notifs, latest) => {
       setNotifications(notifs);
       if (latest && !latest.read) {
         triggerToast(`🔔 New Patient Alert: ${latest.patientName || "Patient"} (${latest.token || "Queue"}) - ${latest.title}`);
       }
-    }, currentDoctor.id);
+    }, currentDoctor.id, currentDoctor.name);
 
     return () => unsubNotifs();
-  }, [currentDoctor.id]);
+  }, [currentDoctor.id, currentDoctor.name]);
 
   // Interactive Modals
   const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -957,7 +962,7 @@ export default function DoctorWorkspacePage() {
                     {notifications.some((n) => !n.read) && (
                       <button
                         onClick={() => {
-                          markAllDoctorNotificationsAsRead(currentDoctor.id);
+                          markAllDoctorNotificationsAsRead(currentDoctor.id, currentDoctor.name);
                           setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
                           triggerToast("All notifications marked as read");
                         }}

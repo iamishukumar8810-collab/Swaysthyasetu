@@ -35,6 +35,8 @@ export interface AIIntakeSummary {
   patientDescription?: string;
   severityScore?: number;
   readinessScore?: number;
+  tokenNumber?: string;
+  queuePosition?: number;
   uploadedReportsDetail?: Array<{ name: string; type?: string; size?: string }>;
   medicinesDetail?: Array<{ name: string; dose?: string; frequency?: string }>;
 }

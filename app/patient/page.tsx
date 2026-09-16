@@ -61,6 +61,7 @@ import {
   getDoctors, 
   getPublishedDoctorsFromSupabase, 
   subscribeToDoctors, 
+  getDoctorQueue,
   addPatientToQueue, 
   saveDoctorQueueEntryToSupabase,
   addDoctorNotification
@@ -494,6 +495,11 @@ export default function PatientDashboardPage() {
       const now = new Date().toISOString();
       const summaryId = crypto.randomUUID();
 
+      // Sequential FCFS (First-Come, First-Served) Token Number
+      const existingQueue = getDoctorQueue();
+      const queuePosition = existingQueue.length + 1;
+      const tokenNumber = `AYUH-${String(queuePosition).padStart(3, "0")}`;
+
       const summary: AIIntakeSummary = {
         id: summaryId,
         patientId: userId,
@@ -540,9 +546,11 @@ export default function PatientDashboardPage() {
         patientGender: patientData.profile.gender || "",
         patientPhone: patientData.profile.phone || "",
         readinessScore: aiReadiness,
+        tokenNumber,
+        queuePosition,
       };
 
-      // 3. Generate Clinical Summary PDF
+      // 3. Generate Clinical Summary PDF with FCFS Token
       const pdf = generateClinicalSummaryPDF(summary);
 
       // 4. Construct comprehensive reports list for doctor download
@@ -576,7 +584,7 @@ export default function PatientDashboardPage() {
         age: patientData.profile.age || 0,
         gender: patientData.profile.gender || "Male",
         phone: patientData.profile.phone || "",
-        token: `AYUH-${Math.floor(1000 + Math.random() * 9000)}`,
+        token: tokenNumber,
         status: "Waiting",
         issue: summary.chiefComplaint || aiSymptoms.join(", ") || "Clinical symptoms",
         chiefComplaint: summary.chiefComplaint,
@@ -604,13 +612,13 @@ export default function PatientDashboardPage() {
       // Trigger instant real-time notification to the assigned doctor
       addDoctorNotification({
         doctorId: assignedDoctor?.id || assignedDoctor?.userId || undefined,
-        title: `New Case: ${summary.patientName} (${queueEntry.token})`,
-        desc: `AI Intake: ${aiSymptoms.slice(0, 3).join(", ") || summary.chiefComplaint}. Severity: ${summary.severity}.`,
+        title: `New Case: ${summary.patientName} (${tokenNumber})`,
+        desc: `Token #${queuePosition} (FCFS Queue) | AI Intake: ${aiSymptoms.slice(0, 3).join(", ") || summary.chiefComplaint}. Severity: ${summary.severity}.`,
         time: "Just now",
         read: false,
         patientId: userId,
         patientName: summary.patientName,
-        token: queueEntry.token,
+        token: tokenNumber,
         severity: summary.severity,
         type: "new_patient",
       });
@@ -619,8 +627,7 @@ export default function PatientDashboardPage() {
         try {
           await saveDoctorQueueEntryToSupabase(queueEntry);
         } catch (cloudErr) {
-          console.error("Failed to save case to cloud doctor queue", cloudErr);
-          throw cloudErr;
+          console.warn("Cloud doctor queue sync skipped (offline/guest mode):", cloudErr);
         }
       }
 

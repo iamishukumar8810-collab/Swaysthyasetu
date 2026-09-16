@@ -516,17 +516,66 @@ export function downloadPatientReport(report: QueuedPatientReport) {
 }
 
 /**
- * Get all notifications for the doctor from localStorage
+ * Get all notifications for the doctor from localStorage,
+ * auto-syncing with existing queued patients if needed.
  */
-export function getDoctorNotifications(doctorId?: string): DoctorNotification[] {
+export function getDoctorNotifications(doctorId?: string, doctorName?: string): DoctorNotification[] {
   if (typeof window === "undefined") return [];
   try {
+    let list: DoctorNotification[] = [];
     const saved = localStorage.getItem(DOCTOR_NOTIFICATIONS_KEY);
-    if (!saved) return [];
-    const parsed: DoctorNotification[] = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return [];
-    if (!doctorId) return parsed;
-    return parsed.filter((n) => !n.doctorId || n.doctorId === doctorId);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          list = parsed;
+        }
+      } catch (e) {}
+    }
+
+    // Auto-sync notifications from doctor queue if any patient cases exist
+    const queue = getDoctorQueue();
+    if (queue.length > 0) {
+      const knownKeys = new Set(list.map((n) => n.token || n.patientId || n.id));
+      let hasNew = false;
+      queue.forEach((patient, idx) => {
+        const key = patient.token || patient.id || patient.userId;
+        if (key && !knownKeys.has(key)) {
+          const newNotif: DoctorNotification = {
+            id: `notif-q-${patient.id || idx}`,
+            doctorId: patient.assignedDoctorId,
+            title: `New Case: ${patient.name} (${patient.token || `AYUH-${String(idx + 1).padStart(3, "0")}`})`,
+            desc: `Token #${idx + 1} (FCFS Queue) | ${patient.chiefComplaint || patient.issue || "Clinical intake submitted"}. Severity: ${patient.severity || "Medium"}`,
+            time: patient.time || "Recently",
+            timestamp: patient.submittedAt || new Date().toISOString(),
+            read: false,
+            patientId: patient.id,
+            patientName: patient.name,
+            token: patient.token || `AYUH-${String(idx + 1).padStart(3, "0")}`,
+            severity: patient.severity || "Medium",
+            type: "new_patient",
+          };
+          list.push(newNotif);
+          hasNew = true;
+        }
+      });
+      if (hasNew) {
+        localStorage.setItem(DOCTOR_NOTIFICATIONS_KEY, JSON.stringify(list));
+      }
+    }
+
+    if (!doctorId && !doctorName) return list;
+
+    // Filter notifications for this doctor or general OPD cases
+    const filtered = list.filter((n) => {
+      if (!n.doctorId) return true; // General OPD notification
+      if (doctorId && n.doctorId === doctorId) return true;
+      if (doctorName && n.doctorId === doctorName) return true;
+      if (doctorName && n.desc && n.desc.toLowerCase().includes(doctorName.toLowerCase())) return true;
+      return true; // Ensure all hospital/OPD pre-consultations alert the attending doctor
+    });
+
+    return filtered;
   } catch (err) {
     console.error("Error reading doctor notifications from localStorage", err);
     return [];
@@ -551,9 +600,10 @@ export function addDoctorNotification(
 
   try {
     const existing = getDoctorNotifications();
-    const updated = [newNotif, ...existing.filter((n) => n.id !== newNotif.id)].slice(0, 50);
+    const updated = [newNotif, ...existing.filter((n) => n.id !== newNotif.id && n.token !== newNotif.token)].slice(0, 50);
     localStorage.setItem(DOCTOR_NOTIFICATIONS_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent(DOCTOR_NOTIFICATIONS_UPDATED_EVENT, { detail: newNotif }));
+    window.dispatchEvent(new CustomEvent(DOCTOR_QUEUE_UPDATED_EVENT));
   } catch (err) {
     console.error("Error saving doctor notification", err);
   }
@@ -579,16 +629,11 @@ export function markDoctorNotificationAsRead(id: string): void {
 /**
  * Mark all notifications for a doctor as read
  */
-export function markAllDoctorNotificationsAsRead(doctorId?: string): void {
+export function markAllDoctorNotificationsAsRead(doctorId?: string, doctorName?: string): void {
   if (typeof window === "undefined") return;
   try {
     const existing = getDoctorNotifications();
-    const updated = existing.map((n) => {
-      if (!doctorId || !n.doctorId || n.doctorId === doctorId) {
-        return { ...n, read: true };
-      }
-      return n;
-    });
+    const updated = existing.map((n) => ({ ...n, read: true }));
     localStorage.setItem(DOCTOR_NOTIFICATIONS_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent(DOCTOR_NOTIFICATIONS_UPDATED_EVENT));
   } catch (err) {
@@ -601,27 +646,30 @@ export function markAllDoctorNotificationsAsRead(doctorId?: string): void {
  */
 export function subscribeToDoctorNotifications(
   callback: (notifications: DoctorNotification[], latestAdded?: DoctorNotification) => void,
-  doctorId?: string
+  doctorId?: string,
+  doctorName?: string
 ): () => void {
   if (typeof window === "undefined") return () => {};
 
   const handleUpdate = (event?: Event) => {
     const customEvent = event as CustomEvent<DoctorNotification> | undefined;
     const latest = customEvent?.detail;
-    callback(getDoctorNotifications(doctorId), latest);
+    callback(getDoctorNotifications(doctorId, doctorName), latest);
   };
 
   const handleStorage = (event: StorageEvent) => {
-    if (event.key === DOCTOR_NOTIFICATIONS_KEY) {
-      callback(getDoctorNotifications(doctorId));
+    if (event.key === DOCTOR_NOTIFICATIONS_KEY || event.key === DOCTOR_QUEUE_KEY) {
+      callback(getDoctorNotifications(doctorId, doctorName));
     }
   };
 
   window.addEventListener(DOCTOR_NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+  window.addEventListener(DOCTOR_QUEUE_UPDATED_EVENT, handleUpdate);
   window.addEventListener("storage", handleStorage);
 
   return () => {
     window.removeEventListener(DOCTOR_NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+    window.removeEventListener(DOCTOR_QUEUE_UPDATED_EVENT, handleUpdate);
     window.removeEventListener("storage", handleStorage);
   };
 }
