@@ -66,6 +66,11 @@ export interface QueuedPatient {
   summaryPdfUrl?: string;
   summaryPdfName?: string;
   submittedAt: string;
+  patientAge?: number;
+  patientGender?: string;
+  reportedSymptoms?: string[];
+  medicines?: string[];
+  uploadedReports?: string[];
 }
 
 export const DEFAULT_AYUSH_DOCTORS: DoctorProfile[] = [];

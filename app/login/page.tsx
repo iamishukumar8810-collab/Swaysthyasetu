@@ -70,6 +70,10 @@ export default function LoginPage() {
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const redirectToSavedRole = (role?: string | null) => {
+    const deviceRole = typeof window !== "undefined"
+      ? window.localStorage.getItem("swasthya-setu-role")
+      : null;
+    if (!role || deviceRole !== role) return false;
     if (role === "doctor") {
       window.location.href = "/doctor";
       return true;
@@ -440,7 +444,8 @@ export default function LoginPage() {
         triggerToast(error.message || "Could not save your role.");
         return;
       }
-    } else if (typeof window !== "undefined") {
+    }
+    if (typeof window !== "undefined") {
       window.localStorage.setItem("swasthya-setu-role", role);
     }
 

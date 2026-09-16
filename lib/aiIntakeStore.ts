@@ -25,6 +25,18 @@ export interface AIIntakeSummary {
   pdfFileName?: string;
   assignedDoctor?: string;
   assignedDoctorId?: string;
+  assignedDoctorSpecialty?: string;
+  assignedDoctorQualifications?: string;
+  assignedDoctorHospital?: string;
+  assignedDoctorFee?: number;
+  patientGender?: string;
+  patientAge?: number;
+  patientPhone?: string;
+  patientDescription?: string;
+  severityScore?: number;
+  readinessScore?: number;
+  uploadedReportsDetail?: Array<{ name: string; type?: string; size?: string }>;
+  medicinesDetail?: Array<{ name: string; dose?: string; frequency?: string }>;
 }
 
 const STORAGE_KEY = "swasthya_setu_ai_intake_summary";

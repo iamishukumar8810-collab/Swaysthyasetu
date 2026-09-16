@@ -267,10 +267,10 @@ export default function DoctorWorkspacePage() {
               status: q.status || "Waiting",
               chiefComplaint: q.chiefComplaint || "",
               duration: q.duration || "",
-              currentMedicines: "",
+              currentMedicines: q.medicines?.join(", ") || "",
               allergies: "",
               insights: "",
-              prakriti: "",
+              prakriti: q.prakriti || "",
               agni: "",
               previousTreatment: "",
               familyHistory: "",
@@ -348,10 +348,10 @@ export default function DoctorWorkspacePage() {
             status: q.status || "Waiting",
             chiefComplaint: q.chiefComplaint || "",
             duration: q.duration || "",
-            currentMedicines: "",
+            currentMedicines: q.medicines?.join(", ") || "",
             allergies: "",
             insights: "",
-            prakriti: "",
+            prakriti: q.prakriti || "",
             agni: "",
             previousTreatment: "",
             familyHistory: "",
@@ -423,19 +423,19 @@ export default function DoctorWorkspacePage() {
       const newPatient: PatientData = {
         id: item.id,
         name: item.name,
-        age: item.age || 0,
-        gender: item.gender || "Not specified",
+        age: item.patientAge || item.age || 0,
+        gender: item.patientGender || item.gender || "",
         phone: item.phone || "",
         time: item.time || "",
         language: item.language || "",
         status: (item.status as any) || "Waiting",
         chiefComplaint: item.issue || item.chiefComplaint || "Consultation Request",
-        duration: item.duration || "Recent",
-        currentMedicines: "",
+        duration: item.duration || "",
+        currentMedicines: item.medicines?.join(", ") || "",
         allergies: "",
-        insights: item.prakriti || "Vata-Pitta Imbalance",
-        prakriti: item.prakriti || "Vata-Pitta",
-        agni: "Mandagni",
+        insights: item.prakriti || "",
+        prakriti: item.prakriti || "",
+        agni: "",
         previousTreatment: "",
         familyHistory: "",
         completeness: 85,
@@ -449,11 +449,11 @@ export default function DoctorWorkspacePage() {
         }] : [],
         timeline: [],
         ayushAssessment: {
-          dosha: item.prakriti || "Vata-Pitta",
-          dhatu: "Rasa, Rakta",
-          srotas: "Annavaha",
+          dosha: item.prakriti || "",
+          dhatu: "",
+          srotas: "",
           nidana: item.issue || "",
-          chikitsa: "Shamana Chikitsa",
+          chikitsa: "",
         },
         medicalHistory: {
           pastConditions: "",
@@ -660,8 +660,8 @@ export default function DoctorWorkspacePage() {
   }>({
     chiefComplaint: "",
     currentMedicines: "",
-    doctorPrescription: "1. Yogaraj Guggulu 2 tabs BD\n2. Dashamoola Kwath 20ml BD\n3. Local application of Mahanarayana Taila twice daily",
-    doctorNotes: "Advised Pathya Ahara: warm cooked meals, avoid fermented foods, curd, and cold water. Schedule follow-up after 14 days."
+    doctorPrescription: "",
+    doctorNotes: ""
   });
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -2939,8 +2939,8 @@ export default function DoctorWorkspacePage() {
                       setEditForm({
                         chiefComplaint: currentPatient.chiefComplaint,
                         currentMedicines: currentPatient.currentMedicines,
-                        doctorPrescription: "1. Yogaraj Guggulu 2 tabs BD\n2. Dashamoola Kwath 20ml BD\n3. Local application of Mahanarayana Taila twice daily",
-                        doctorNotes: "Advised Pathya Ahara: warm cooked meals, avoid fermented foods, curd, and cold water. Schedule follow-up after 14 days."
+                        doctorPrescription: "",
+                        doctorNotes: ""
                       });
                       setShowEditModal(true);
                     }}
