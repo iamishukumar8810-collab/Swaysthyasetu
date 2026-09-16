@@ -1160,12 +1160,141 @@ export default function PatientDashboardPage() {
                     <div className="mt-3 space-y-2">{aiReports.length ? aiReports.map((report) => <div key={report.id} className="flex items-center justify-between rounded-xl border border-[#D7ECE1] bg-[#F3FAF6] p-3 text-xs"><span>📄 {report.name}</span><button onClick={() => setAiReports((current) => current.filter((item) => item.id !== report.id))} className="text-[#D9503A]">Remove</button></div>) : <p className="text-[11px] text-[#6C7D76]">No reports added yet.</p>}</div>
                     <div className="mt-4 flex items-center justify-between gap-3"><button onClick={() => setAiStep("medicines")} className="rounded-xl bg-[#0E7C4A] px-5 py-2.5 text-xs font-bold text-white">Next: Add Medicines →</button><span className="text-[10px] text-[#6C7D76]">◷ Step 2 of 4</span></div>
                   </>}
-                  {aiStep === "medicines" && <>
-                    <h2 className="text-[15px] font-bold text-[#123B2C]">💊 Current medicines</h2><p className="text-[11px] text-[#6C7D76] mt-1">Add anything you&apos;re currently taking, including over-the-counter items.</p>
-                    <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1.6fr_1fr_1fr_auto] gap-2"><input value={aiMedicineDraft.name} onChange={(event) => setAiMedicineDraft({ ...aiMedicineDraft, name: event.target.value })} placeholder="Medicine name" className="rounded-xl border border-[#D7ECE1] bg-[#F3FAF6] p-2.5 text-xs outline-none" /><input value={aiMedicineDraft.dose} onChange={(event) => setAiMedicineDraft({ ...aiMedicineDraft, dose: event.target.value })} placeholder="Dosage (e.g. 500mg)" className="rounded-xl border border-[#D7ECE1] bg-[#F3FAF6] p-2.5 text-xs outline-none" /><select value={aiMedicineDraft.frequency} onChange={(event) => setAiMedicineDraft({ ...aiMedicineDraft, frequency: event.target.value })} className="rounded-xl border border-[#D7ECE1] bg-[#F3FAF6] p-2.5 text-xs outline-none"><option>Once a day</option><option>Twice a day</option><option>Thrice a day</option><option>As needed</option></select><button onClick={addAiMedicine} className="rounded-xl bg-[#0E7C4A] px-4 py-2 text-xs font-bold text-white">+ Add</button></div>
-                    <div className="mt-4 flex flex-wrap gap-2">{aiMedicines.length ? aiMedicines.map((medicine, index) => <span key={`${medicine.name}-${index}`} className="rounded-full border border-[#D7ECE1] bg-[#F3FAF6] px-3 py-2 text-[11px]">💊 {medicine.name} · {medicine.dose} · {medicine.frequency}</span>) : <p className="text-[11px] text-[#6C7D76]">No medicines added yet.</p>}</div>
-                    <div className="mt-4 flex items-center justify-between gap-3"><button onClick={() => setAiStep("review")} className="rounded-xl bg-[#0E7C4A] px-5 py-2.5 text-xs font-bold text-white">Next: Review Case →</button><span className="text-[10px] text-[#6C7D76]">◷ Step 3 of 4</span></div>
-                  </>}
+                  {aiStep === "medicines" && (
+                    <>
+                      <h2 className="text-[15px] font-bold text-[#123B2C] dark:text-white">
+                        💊 Current medicines
+                      </h2>
+                      <p className="text-[11px] text-[#6C7D76] dark:text-slate-400 mt-1">
+                        Add anything you&apos;re currently taking, including allopathic, ayurvedic or over-the-counter items.
+                      </p>
+
+                      {/* Medicine Input Bar with high-contrast text and Enter key support */}
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-[1.6fr_1fr_1fr_auto] gap-2.5">
+                        <input
+                          type="text"
+                          value={aiMedicineDraft.name}
+                          onChange={(event) => setAiMedicineDraft({ ...aiMedicineDraft, name: event.target.value })}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              addAiMedicine();
+                            }
+                          }}
+                          placeholder="Medicine name (e.g. Pantocid, Paracetamol)"
+                          className="w-full rounded-xl border border-[#D7ECE1] dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs font-semibold text-[#123B2C] dark:text-white placeholder:text-slate-400 outline-none focus:border-[#0E7C4A] focus:ring-2 focus:ring-[#0E7C4A]/20 transition-all shadow-xs"
+                        />
+
+                        <input
+                          type="text"
+                          value={aiMedicineDraft.dose}
+                          onChange={(event) => setAiMedicineDraft({ ...aiMedicineDraft, dose: event.target.value })}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              addAiMedicine();
+                            }
+                          }}
+                          placeholder="Dosage (e.g. 40mg, 1 tsp)"
+                          className="w-full rounded-xl border border-[#D7ECE1] dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs font-semibold text-[#123B2C] dark:text-white placeholder:text-slate-400 outline-none focus:border-[#0E7C4A] focus:ring-2 focus:ring-[#0E7C4A]/20 transition-all shadow-xs"
+                        />
+
+                        <select
+                          value={aiMedicineDraft.frequency}
+                          onChange={(event) => setAiMedicineDraft({ ...aiMedicineDraft, frequency: event.target.value })}
+                          className="w-full rounded-xl border border-[#D7ECE1] dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs font-semibold text-[#123B2C] dark:text-white outline-none focus:border-[#0E7C4A] focus:ring-2 focus:ring-[#0E7C4A]/20 transition-all shadow-xs cursor-pointer"
+                        >
+                          <option value="Once a day" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Once a day</option>
+                          <option value="Twice a day" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Twice a day</option>
+                          <option value="Thrice a day" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Thrice a day</option>
+                          <option value="As needed" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">As needed (SOS)</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={addAiMedicine}
+                          className="rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-1 shrink-0"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add</span>
+                        </button>
+                      </div>
+
+                      {/* Quick Suggestions Chips */}
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10.5px] font-bold text-[#7A8B84] dark:text-slate-400">Quick add:</span>
+                        {[
+                          { name: "Pantocid", dose: "40mg", frequency: "Once a day" },
+                          { name: "Paracetamol", dose: "650mg", frequency: "As needed" },
+                          { name: "Ashwagandha", dose: "1 tab", frequency: "Twice a day" },
+                          { name: "Triphala Churna", dose: "1 tsp", frequency: "Once a day" },
+                        ].map((sugg) => (
+                          <button
+                            key={sugg.name}
+                            type="button"
+                            onClick={() => {
+                              setAiMedicines((current) => [
+                                ...current,
+                                { name: sugg.name, dose: sugg.dose, frequency: sugg.frequency }
+                              ]);
+                            }}
+                            className="text-[10px] font-semibold text-[#0E7C4A] dark:text-emerald-400 bg-[#EAF7EF] dark:bg-emerald-950/60 hover:bg-[#DDF2E5] border border-[#CFEBDB] dark:border-emerald-800/80 px-2 py-1 rounded-full transition-all cursor-pointer"
+                          >
+                            + {sugg.name} ({sugg.dose})
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Added Medicines List */}
+                      <div className="mt-4">
+                        {aiMedicines.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {aiMedicines.map((medicine, index) => (
+                              <span
+                                key={`${medicine.name}-${index}`}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[#CFEBDB] dark:border-emerald-800 bg-[#EAF7EF] dark:bg-emerald-950/60 px-3 py-1.5 text-xs font-semibold text-[#123B2C] dark:text-emerald-200 shadow-2xs animate-in fade-in"
+                              >
+                                <span>💊 {medicine.name} · {medicine.dose} · {medicine.frequency}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setAiMedicines((current) => current.filter((_, i) => i !== index))}
+                                  className="ml-1 rounded-full p-0.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                                  title="Remove medicine"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-[#6C7D76] dark:text-slate-400 italic">
+                            No medicines added yet. Type your medicine name above or click a quick tag.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Footer navigation */}
+                      <div className="mt-5 flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => setAiStep("reports")}
+                          className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          ← Back to Reports
+                        </button>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-[#6C7D76] dark:text-slate-400">◷ Step 3 of 4</span>
+                          <button
+                            type="button"
+                            onClick={() => setAiStep("review")}
+                            className="rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all cursor-pointer"
+                          >
+                            Next: Review Case →
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {aiStep === "review" && <><h2 className="text-[15px] font-bold text-[#123B2C]">✅ Review your case</h2><p className="text-[11px] text-[#6C7D76] mt-1">Here&apos;s the structured summary we&apos;ll send to your doctor.</p><div className="grid grid-cols-3 gap-3 mt-5">{[[aiSymptoms.length, 'Symptoms'], [aiReports.length, 'Reports'], [aiMedicines.length, 'Medicines']].map(([value, label]) => <div key={label as string} className="rounded-xl border border-[#D7ECE1] bg-[#F3FAF6] p-4 text-center"><strong className="block text-2xl text-[#0E7C4A]">{value}</strong><span className="text-[10px] text-[#6C7D76]">{label}</span></div>)}</div><div className="mt-4 flex flex-wrap gap-2">{aiSymptoms.map((symptom) => <span key={symptom} className="rounded-full bg-[#0E7C4A] px-3 py-2 text-[11px] font-bold text-white">{symptom}</span>)}</div><button disabled={isAiSubmitting} onClick={() => { if (!selectedDoctorForCase && doctors.length > 0) { setSelectedDoctorForCase(doctors[0]); } setShowDoctorSelectModal(true); }} className="mt-5 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all cursor-pointer flex items-center gap-2 disabled:opacity-60"><Stethoscope className="w-4 h-4" /><span>Select Doctor &amp; Submit Case →</span></button></>}
                 </div>
 
