@@ -673,12 +673,18 @@ export default function DoctorWorkspacePage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState<{
     chiefComplaint: string;
+    duration: string;
     currentMedicines: string;
+    prakriti: string;
+    agni: string;
     doctorPrescription: string;
     doctorNotes: string;
   }>({
     chiefComplaint: "",
+    duration: "",
     currentMedicines: "",
+    prakriti: "",
+    agni: "",
     doctorPrescription: "",
     doctorNotes: ""
   });
@@ -687,6 +693,26 @@ export default function DoctorWorkspacePage() {
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Open Edit Modal with patient's live values prefilled
+  const openEditModal = () => {
+    setEditForm({
+      chiefComplaint: currentPatient.chiefComplaint || "",
+      duration: currentPatient.duration || "",
+      currentMedicines: currentPatient.currentMedicines || "",
+      prakriti: currentPatient.prakriti || currentPatient.ayushAssessment?.dosha || "Pitta-Kapha Aggravation",
+      agni: currentPatient.agni || "Tikshnagni (Hyperactive / Acidic)",
+      doctorPrescription:
+        currentPatient.ayushAssessment?.chikitsa ||
+        editForm.doctorPrescription ||
+        "1. Maharasnadi Kwath 15ml BD with equal warm water\n2. Yogaraj Guggulu 2 tabs BD after meals\n3. Castor oil (Eranda taila) 5ml with warm water at bedtime",
+      doctorNotes:
+        currentPatient.medicalHistory?.lifestyle ||
+        editForm.doctorNotes ||
+        "Pathya: Warm, freshly prepared light meals, moong dal khichdi. Apathya: Strictly avoid sour/spicy food, excessive tea/coffee, cold drinks and curd at night."
+    });
+    setShowEditModal(true);
   };
 
   // Upload input ref
@@ -819,20 +845,35 @@ export default function DoctorWorkspacePage() {
 
   // Save Doctor Edit Form
   const handleSaveEdit = () => {
+    const updatedPrescription = editForm.doctorPrescription.trim();
+    const updatedNotes = editForm.doctorNotes.trim();
+
     setPatients((prev) =>
       prev.map((p) => {
         if (p.id === currentPatient.id) {
           return {
             ...p,
             chiefComplaint: editForm.chiefComplaint || p.chiefComplaint,
-            currentMedicines: editForm.currentMedicines || p.currentMedicines
+            duration: editForm.duration || p.duration,
+            currentMedicines: editForm.currentMedicines || p.currentMedicines,
+            prakriti: editForm.prakriti || p.prakriti,
+            agni: editForm.agni || p.agni,
+            ayushAssessment: {
+              ...p.ayushAssessment,
+              dosha: editForm.prakriti || p.ayushAssessment.dosha,
+              chikitsa: updatedPrescription || p.ayushAssessment.chikitsa,
+            },
+            medicalHistory: {
+              ...p.medicalHistory,
+              lifestyle: updatedNotes || p.medicalHistory.lifestyle,
+            }
           };
         }
         return p;
       })
     );
     setShowEditModal(false);
-    triggerToast("Clinical notes and prescription saved successfully!");
+    triggerToast("Clinical case sheet & prescription updated successfully!");
   };
 
   return (
@@ -3012,23 +3053,15 @@ export default function DoctorWorkspacePage() {
                 <div className="space-y-2 pt-1">
                   <button
                     onClick={() => setShowFinalCaseSheetModal(true)}
-                    className="w-full py-3 rounded-2xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white text-xs font-bold shadow-md shadow-emerald-800/20 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-2xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white text-xs font-bold shadow-md shadow-emerald-800/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <FileText className="w-4 h-4" />
                     <span>{t("card6.viewFinal", "View Final Case Sheet")}</span>
                   </button>
 
                   <button
-                    onClick={() => {
-                      setEditForm({
-                        chiefComplaint: currentPatient.chiefComplaint,
-                        currentMedicines: currentPatient.currentMedicines,
-                        doctorPrescription: "",
-                        doctorNotes: ""
-                      });
-                      setShowEditModal(true);
-                    }}
-                    className="w-full py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-[#0E7C4A] text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-2"
+                    onClick={openEditModal}
+                    className="w-full py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-[#0E7C4A] text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Edit3 className="w-4 h-4 text-slate-500" />
                     <span>{t("card6.editRequest", "Edit / Request More Info")}</span>
@@ -3470,7 +3503,7 @@ export default function DoctorWorkspacePage() {
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
           <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 space-y-6 animate-in zoom-in-95">
             
-            {/* Header with Print */}
+            {/* Header with Print and Edit Quick Action */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0E7C4A] text-white flex items-center justify-center shadow-md">
@@ -3480,104 +3513,189 @@ export default function DoctorWorkspacePage() {
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
                     Official AYUSH Clinical Case Record
                   </h3>
-                  <p className="text-xs text-slate-400 font-mono">
-                    Token: {currentPatient.id} • {t("brand.name", "Swasthya Setu")} Platform
-                  </p>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="text-xs font-mono font-bold text-[#0E7C4A] dark:text-emerald-400 bg-[#EAF7EF] dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-[#CFEBDB] dark:border-emerald-800">
+                      Token: {currentPatient.id || "101"}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      • {t("brand.name", "Swasthya Setu")} Platform
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
+                  onClick={() => {
+                    setShowFinalCaseSheetModal(false);
+                    openEditModal();
+                  }}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Edit Sheet</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => window.print()}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 flex items-center gap-1.5"
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print / PDF</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowFinalCaseSheetModal(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800"
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Case Sheet Printable View */}
+            {/* Case Sheet Printable / Review View */}
             <div className="space-y-4 text-xs">
               
+              {/* Patient Basic Demographics Card */}
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <span className="text-slate-400 text-[10px] uppercase font-bold">Patient Name</span>
-                  <p className="font-bold text-slate-900 dark:text-white text-sm">{currentPatient.name}</p>
+                  <p className="font-bold text-slate-900 dark:text-white text-sm">{currentPatient.name || "Unknown Patient"}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] uppercase font-bold">Age / Gender</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{currentPatient.age} Y / {currentPatient.gender}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{currentPatient.age ? `${currentPatient.age} Y` : "—"} / {currentPatient.gender || "—"}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400 text-[10px] uppercase font-bold">Phone Number</span>
-                  <p className="font-mono font-bold text-slate-900 dark:text-white">+91 {currentPatient.phone}</p>
+                  <span className="text-slate-400 text-[10px] uppercase font-bold">Mobile Number</span>
+                  <p className="font-mono font-bold text-slate-900 dark:text-white">+91 {currentPatient.phone || "—"}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] uppercase font-bold">Prakriti Analysis</span>
-                  <p className="font-bold text-[#0E7C4A] dark:text-emerald-400">{currentPatient.prakriti}</p>
+                  <p className="font-bold text-[#0E7C4A] dark:text-emerald-400">
+                    {currentPatient.prakriti || currentPatient.ayushAssessment?.dosha || "Pitta-Kapha"}
+                  </p>
                 </div>
               </div>
 
+              {/* SECTION 1: Chief Complaints & Symptoms */}
               <div className="space-y-1.5">
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                  Clinical Diagnosis & Chief Complaints
-                </h4>
-                <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200">
-                  {currentPatient.chiefComplaint} (Duration: {currentPatient.duration}). {currentPatient.insights}
-                </p>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                    1. Patient Symptoms & Chief Complaints (लक्षण व मुख्य शिकायत)
+                  </h4>
+                  {currentPatient.duration && (
+                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                      Duration: {currentPatient.duration}
+                    </span>
+                  )}
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 leading-relaxed">
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    {currentPatient.chiefComplaint || "No active symptoms or chief complaint recorded."}
+                  </p>
+                  {currentPatient.insights && (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                      Clinical Insight: {currentPatient.insights}
+                    </p>
+                  )}
+                </div>
               </div>
 
+              {/* SECTION 2: Current Medicines & Diagnostic History */}
               <div className="space-y-1.5">
                 <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                  AYUSH Chikitsa (Treatment Plan)
+                  2. Patient Current Medicines & History (वर्तमान दवाएं व इतिहास)
                 </h4>
-                <p className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 text-emerald-900 dark:text-emerald-200 font-medium">
-                  {currentPatient.ayushAssessment.chikitsa}
-                </p>
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+                  {currentPatient.currentMedicines ? (
+                    <div className="space-y-1">
+                      <p className="font-medium text-slate-900 dark:text-white">
+                        {currentPatient.currentMedicines}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 italic">
+                      No current allopathic or ayurvedic medications reported by patient.
+                    </p>
+                  )}
+                  {currentPatient.previousTreatment && (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
+                      Past Treatments: {currentPatient.previousTreatment}
+                    </p>
+                  )}
+                </div>
               </div>
 
+              {/* SECTION 3: AYUSH Dashavidha & Agni Pariksha */}
               <div className="space-y-1.5">
                 <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                  Doctor Prescription & Notes
+                  3. AYUSH Clinical & Agni Assessment (दोष व अग्नि विश्लेषण)
                 </h4>
-                <pre className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-sans text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-                  {editForm.doctorPrescription}
-                  {"\n\n"}
-                  {editForm.doctorNotes}
+                <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 text-emerald-900 dark:text-emerald-200 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase font-bold block">Dosha Imbalance / Prakriti</span>
+                    <p className="font-bold">{currentPatient.prakriti || currentPatient.ayushAssessment?.dosha || "Pitta-Kapha Aggravation"}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 uppercase font-bold block">Digestive Fire / Agni</span>
+                    <p className="font-bold">{currentPatient.agni || "Tikshnagni (Hyperactive / Acidic)"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: Doctor Prescription & Formulations */}
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                  4. Doctor Prescription & AYUSH Chikitsa Plan (चिकित्सक परामर्श व आयुर्वेदिक औषधियां)
+                </h4>
+                <pre className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-sans text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                  {currentPatient.ayushAssessment?.chikitsa ||
+                    editForm.doctorPrescription ||
+                    "1. Maharasnadi Kwath 15ml BD with equal warm water\n2. Yogaraj Guggulu 2 tabs BD after meals\n3. Castor oil (Eranda taila) 5ml with warm water at bedtime"}
                 </pre>
               </div>
 
-              {/* Digital Signature Verification */}
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              {/* SECTION 5: Pathya-Apathya & Diet Guidance */}
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                  5. Pathya-Apathya & Diet/Lifestyle Guidance (पथ्य-अपथ्य एवं खान-पान निर्देश)
+                </h4>
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-sans text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+                  {currentPatient.medicalHistory?.lifestyle ||
+                    editForm.doctorNotes ||
+                    "Pathya: Warm, freshly prepared light meals, moong dal khichdi. Apathya: Strictly avoid sour/spicy food, excessive tea/coffee, cold drinks and curd at night."}
+                </div>
+              </div>
+
+              {/* SECTION 6: Digital Signature Verification */}
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-bold text-slate-900 dark:text-white">
-                    Attending Physician: {currentDoctor.name || '—'}
+                    Attending Physician: {currentDoctor.name || "Dr. Vaidya (Attending Physician)"}
                   </p>
-                  <p className="text-[10px] text-slate-400">MD (Ayurveda Kayachikitsa), Reg. AYU-64219</p>
+                  <p className="text-[10px] text-slate-400">
+                    {currentDoctor.qualifications || "BAMS, MD (Ayurveda)"} • Reg. {currentDoctor.registrationNumber || "AYU-DEL-2015-08129"} • {currentDoctor.hospital || "AYUSH Integrated Healthcare"}
+                  </p>
                 </div>
 
                 {isDigitallySigned ? (
-                  <div className="px-3.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center gap-1.5 border border-emerald-300">
+                  <div className="px-3.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold text-xs flex items-center gap-1.5 border border-emerald-300 dark:border-emerald-700">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Digitally Signed & Locked</span>
+                    <span>Digitally Signed &amp; Locked</span>
                   </div>
                 ) : (
                   <button
+                    type="button"
                     onClick={() => {
                       setIsDigitallySigned(true);
-                      triggerToast(`Case Sheet Digitally Signed by ${currentDoctor.name || 'Physician'}.`);
+                      triggerToast(`Case Sheet Digitally Signed by ${currentDoctor.name || "Physician"}.`);
                     }}
-                    className="px-4 py-2 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white font-bold text-xs shadow-md flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white font-bold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
-                    <span>Digitally Sign & Lock Sheet</span>
+                    <span>Digitally Sign &amp; Lock Sheet</span>
                   </button>
                 )}
               </div>
@@ -3590,79 +3708,148 @@ export default function DoctorWorkspacePage() {
 
       {/* MODAL 4: EDIT / REQUEST MORE INFO */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 animate-in zoom-in-95">
             
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-full bg-[#EAF7EF] dark:bg-emerald-950 text-[#0E7C4A] dark:text-emerald-300 flex items-center justify-center font-bold">
                   <Edit3 className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Edit Observations & Prescribe
+                    Edit Clinical Case Observations &amp; Prescribe
                   </h3>
-                  <p className="text-[10px] text-slate-400">Patient: {currentPatient.name}</p>
+                  <p className="text-[10px] text-slate-400">
+                    Patient: <strong>{currentPatient.name}</strong> • Token: {currentPatient.id}
+                  </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowEditModal(false)}
-                className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400"
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
               >
-                <X className="w-3 h-3" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
+              
+              {/* Row 1: Chief Complaints and Duration */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Chief Complaint / Symptoms (लक्षण)
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.chiefComplaint}
+                    onChange={(e) => setEditForm({ ...editForm, chiefComplaint: e.target.value })}
+                    placeholder="e.g. Amlapitta, Joint Pain, Indigestion"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Duration (अवधि)
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.duration}
+                    onChange={(e) => setEditForm({ ...editForm, duration: e.target.value })}
+                    placeholder="e.g. 3 months, 2 weeks"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Current Medicines */}
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Chief Complaint
+                  Current Medicines / Allopathic &amp; Ayurvedic History (वर्तमान दवाएं)
                 </label>
                 <input
                   type="text"
-                  value={editForm.chiefComplaint}
-                  onChange={(e) => setEditForm({ ...editForm, chiefComplaint: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A]"
+                  value={editForm.currentMedicines}
+                  onChange={(e) => setEditForm({ ...editForm, currentMedicines: e.target.value })}
+                  placeholder="e.g. Pantocid 40mg (OD), Paracetamol 650mg SOS"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
                 />
               </div>
 
+              {/* Row 3: Prakriti & Agni Assessment */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Prakriti / Dosha Imbalance (प्रकृति व दोष)
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.prakriti}
+                    onChange={(e) => setEditForm({ ...editForm, prakriti: e.target.value })}
+                    placeholder="e.g. Pitta-Kapha Aggravation, Vata Prakriti"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    Digestive Fire / Agni (अग्नि परीक्षण)
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.agni}
+                    onChange={(e) => setEditForm({ ...editForm, agni: e.target.value })}
+                    placeholder="e.g. Tikshnagni (Hyperactive / Acidic), Mandagni"
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Row 4: Ayurvedic Medicines Prescription */}
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Ayurvedic Medicines & Formulations
+                  Doctor Ayurvedic Prescription &amp; Formulations (चिकित्सक परामर्श व औषधियां)
                 </label>
                 <textarea
                   rows={3}
                   value={editForm.doctorPrescription}
                   onChange={(e) => setEditForm({ ...editForm, doctorPrescription: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A]"
+                  placeholder="1. Maharasnadi Kwath 15ml BD with equal warm water&#10;2. Yogaraj Guggulu 2 tabs BD after meals"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
                 />
               </div>
 
+              {/* Row 5: Pathya-Apathya Guidance */}
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Pathya-Apathya (Diet & Lifestyle Guidance)
+                  Pathya-Apathya (Diet &amp; Lifestyle Guidance / पथ्य-अपथ्य)
                 </label>
                 <textarea
                   rows={2}
                   value={editForm.doctorNotes}
                   onChange={(e) => setEditForm({ ...editForm, doctorNotes: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A]"
+                  placeholder="Pathya: Warm freshly cooked meals. Apathya: Avoid spicy food, curd at night, etc."
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-[#0E7C4A] text-slate-900 dark:text-white font-medium"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
+                type="button"
                 onClick={() => setShowEditModal(false)}
-                className="px-3.5 py-2 rounded-xl text-slate-500 text-xs font-semibold"
+                className="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleSaveEdit}
-                className="px-5 py-2 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white text-xs font-bold shadow-md"
+                className="px-5 py-2.5 rounded-xl bg-[#0E7C4A] hover:bg-[#0A5E39] text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5 transition-all"
               >
-                Save Changes
+                <Check className="w-4 h-4" />
+                <span>Save Changes &amp; Sync Sheet</span>
               </button>
             </div>
 
