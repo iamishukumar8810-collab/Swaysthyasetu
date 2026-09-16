@@ -65,21 +65,64 @@ export default function LoginPage() {
   const [isWiggling, setIsWiggling] = useState(false);
   const [poppedBtn, setPoppedBtn] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // Role Selection Overlay state (opens after login)
+  // Role Selection Overlay state (opens only for new users without a saved role)
   const [showRoleOverlay, setShowRoleOverlay] = useState(false);
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const redirectToSavedRole = (role?: string | null) => {
-    const deviceRole = typeof window !== "undefined"
-      ? window.localStorage.getItem("swasthya-setu-role")
-      : null;
-    if (!role || deviceRole !== role) return false;
+  // Universal helper to retrieve a saved role for an authenticated user / email / phone
+  const getSavedRoleForUser = (user?: any, identifier?: string): "doctor" | "patient" | null => {
+    if (typeof window === "undefined") return null;
+
+    // 1. Direct role saved in Supabase user metadata
+    const metaRole = user?.user_metadata?.app_role;
+    if (metaRole === "doctor" || metaRole === "patient") {
+      return metaRole;
+    }
+
+    // 2. Lookup by email / phone in localStorage
+    const rawId = identifier || user?.email || user?.phone || "";
+    const cleanId = rawId.toLowerCase().trim();
+    if (cleanId) {
+      const stored = window.localStorage.getItem(`swasthya_role_${cleanId}`);
+      if (stored === "doctor" || stored === "patient") {
+        return stored;
+      }
+    }
+
+    // 3. Lookup by user ID in localStorage
+    if (user?.id) {
+      const stored = window.localStorage.getItem(`swasthya_role_${user.id}`);
+      if (stored === "doctor" || stored === "patient") {
+        return stored;
+      }
+    }
+
+    // 4. Default demo accounts recognition
+    if (cleanId === "doctor@gmail.com") return "doctor";
+    if (cleanId === "pat@gmail.com" || cleanId === "patient@gmail.com") return "patient";
+
+    return null;
+  };
+
+  const redirectToSavedRole = (role?: string | null, userName?: string) => {
     if (role === "doctor") {
-      window.location.href = "/doctor";
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("swasthya-setu-role", "doctor");
+      }
+      triggerToast(userName ? `Welcome back, ${userName}! Opening Doctor Portal…` : "Welcome back! Opening Doctor Portal…");
+      setTimeout(() => {
+        window.location.href = "/doctor";
+      }, 400);
       return true;
     }
     if (role === "patient") {
-      window.location.href = "/patient";
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("swasthya-setu-role", "patient");
+      }
+      triggerToast(userName ? `Welcome back, ${userName}! Opening Patient Portal…` : "Welcome back! Opening Patient Portal…");
+      setTimeout(() => {
+        window.location.href = "/patient";
+      }, 400);
       return true;
     }
     return false;
@@ -97,15 +140,23 @@ export default function LoginPage() {
       }
     }
 
-    // 1. Check existing active session or session from OAuth redirect
+    // 1. Check existing active session or session returning from OAuth redirect
     const checkInitialSession = async () => {
       if (!isSupabaseConfigured) return;
       try {
         const { data } = await supabase.auth.getSession();
         if (active && data.session?.user) {
           const user = data.session.user;
-          const savedRole = user.user_metadata?.app_role;
-          if (!redirectToSavedRole(savedRole)) {
+          const isOAuthCallback =
+            typeof window !== "undefined" &&
+            (window.location.hash.includes("access_token") || window.location.search.includes("code="));
+
+          const savedRole = getSavedRoleForUser(user, user.email);
+          if (savedRole) {
+            // Already logged in before with a role -> direct redirect
+            redirectToSavedRole(savedRole, user.user_metadata?.full_name || user.email);
+          } else if (isOAuthCallback) {
+            // First time OAuth user without saved role -> show role selection overlay
             setGoogleUser(user);
             setEmail(user.email || "");
             setShowRoleOverlay(true);
@@ -118,16 +169,19 @@ export default function LoginPage() {
 
     checkInitialSession();
 
-    // 2. Subscribe to auth events (e.g. OAuth callback sign in)
+    // 2. Subscribe to auth state changes (e.g. OAuth callback completion)
     if (isSupabaseConfigured) {
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange((event, session) => {
         if (active && (event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
-          const savedRole = session.user.user_metadata?.app_role;
-          if (!redirectToSavedRole(savedRole)) {
-            setGoogleUser(session.user);
-            setEmail(session.user.email || "");
+          const user = session.user;
+          const savedRole = getSavedRoleForUser(user, user.email);
+          if (savedRole) {
+            redirectToSavedRole(savedRole, user.user_metadata?.full_name || user.email);
+          } else {
+            setGoogleUser(user);
+            setEmail(user.email || "");
             setShowRoleOverlay(true);
             triggerToast(`Google sign-in successful! Please select your role.`);
           }
@@ -239,7 +293,7 @@ export default function LoginPage() {
     }
   };
 
-  // 2. Verify OTP & Open Role Selection Overlay
+  // 2. Verify OTP & Open Role Selection Overlay (or Direct Redirect if Role Saved)
   const handleVerifyOtp = async () => {
     const token = otp.join("").trim();
     if (token !== "12345" && token !== "123456" && token.length < 5) {
@@ -250,12 +304,23 @@ export default function LoginPage() {
     setLoading(true);
     const formattedPhone = `+91${phoneNumber}`;
 
+    const checkSavedRoleAndRedirect = (userObj?: any) => {
+      const savedRole =
+        getSavedRoleForUser(userObj, formattedPhone) ||
+        getSavedRoleForUser(userObj, phoneNumber);
+      if (savedRole) {
+        redirectToSavedRole(savedRole);
+      } else {
+        triggerToast("Verified successfully! Please select your role.");
+        setShowRoleOverlay(true); // New user / no role saved yet
+      }
+    };
+
     // Allow default OTP "12345" or "123456"
     if (token === "12345" || token === "123456" || token.startsWith("12345")) {
       setTimeout(() => {
-        triggerToast("Verified successfully!");
         setLoading(false);
-        setShowRoleOverlay(true); // OPEN ROLE OVERLAY
+        checkSavedRoleAndRedirect();
       }, 400);
       return;
     }
@@ -273,9 +338,8 @@ export default function LoginPage() {
           triggerToast(error.message || "Invalid OTP code. Use default: 12345");
           setLoading(false);
         } else {
-          triggerToast("Verified successfully!");
           setLoading(false);
-          setShowRoleOverlay(true); // OPEN ROLE OVERLAY
+          checkSavedRoleAndRedirect(data?.user);
         }
       } catch (err: any) {
         triggerToast("Invalid OTP. Default code is 12345");
@@ -284,7 +348,7 @@ export default function LoginPage() {
     } else {
       setTimeout(() => {
         setLoading(false);
-        triggerToast("Invalid OTP. Please enter 12345");
+        checkSavedRoleAndRedirect();
       }, 400);
     }
   };
@@ -323,10 +387,7 @@ export default function LoginPage() {
       if (trimmedPassword === "123456") {
         setTimeout(() => {
           setLoading(false);
-          triggerToast("Welcome Dr. Vaidya! Logging into Doctor Portal…");
-          setTimeout(() => {
-            window.location.href = "/doctor";
-          }, 500);
+          redirectToSavedRole("doctor", "Dr. Vaidya");
         }, 350);
         return;
       } else {
@@ -341,10 +402,7 @@ export default function LoginPage() {
       if (trimmedPassword === "123456") {
         setTimeout(() => {
           setLoading(false);
-          triggerToast("Welcome! Logging into Patient Portal…");
-          setTimeout(() => {
-            window.location.href = "/patient";
-          }, 400);
+          redirectToSavedRole("patient");
         }, 300);
         return;
       } else {
@@ -357,6 +415,7 @@ export default function LoginPage() {
     // 3. Supabase or Local Fallback for any custom email
     if (isSupabaseConfigured) {
       try {
+        let authUser: any = null;
         if (isSignUp) {
           const { data, error } = await supabase.auth.signUp({
             email: trimmedEmail,
@@ -364,10 +423,11 @@ export default function LoginPage() {
           });
           if (error) {
             triggerToast(error.message);
-          } else {
-            triggerToast("Account created successfully!");
-            setShowRoleOverlay(true);
+            setLoading(false);
+            return;
           }
+          authUser = data?.user;
+          triggerToast("Account created successfully!");
         } else {
           const { data, error } = await supabase.auth.signInWithPassword({
             email: trimmedEmail,
@@ -375,14 +435,30 @@ export default function LoginPage() {
           });
           if (error) {
             triggerToast(error.message);
-          } else {
-            triggerToast("Logged in successfully!");
-            setShowRoleOverlay(true);
+            setLoading(false);
+            return;
           }
+          authUser = data?.user;
+          triggerToast("Logged in successfully!");
+        }
+
+        const savedRole = getSavedRoleForUser(authUser, trimmedEmail);
+        if (savedRole) {
+          // If this account already has a chosen role, jump straight in
+          redirectToSavedRole(savedRole, authUser?.user_metadata?.full_name || trimmedEmail);
+        } else {
+          // First time login for this account -> ask role
+          setGoogleUser(authUser);
+          setShowRoleOverlay(true);
         }
       } catch (err: any) {
-        triggerToast("Logged in successfully!");
-        setShowRoleOverlay(true);
+        const savedRole = getSavedRoleForUser(undefined, trimmedEmail);
+        if (savedRole) {
+          redirectToSavedRole(savedRole);
+        } else {
+          triggerToast("Logged in successfully!");
+          setShowRoleOverlay(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -390,8 +466,13 @@ export default function LoginPage() {
       // Local Prototype / Demo Mode
       setTimeout(() => {
         setLoading(false);
-        triggerToast(isSignUp ? "Account created & logged in!" : "Logged in successfully!");
-        setShowRoleOverlay(true);
+        const savedRole = getSavedRoleForUser(undefined, trimmedEmail);
+        if (savedRole) {
+          redirectToSavedRole(savedRole);
+        } else {
+          triggerToast(isSignUp ? "Account created & logged in!" : "Logged in successfully!");
+          setShowRoleOverlay(true);
+        }
       }, 400);
     }
   };
@@ -428,32 +509,55 @@ export default function LoginPage() {
         setLoading(false);
         const demoEmail = "google.user@ayush.gov.in";
         setEmail(demoEmail);
-        setGoogleUser({ email: demoEmail, user_metadata: { full_name: "Google AYUSH User" } });
-        setShowRoleOverlay(true);
-        triggerToast("Logged in with Google (Demo Mode)");
+        const demoUser = { email: demoEmail, user_metadata: { full_name: "Google AYUSH User" } };
+        setGoogleUser(demoUser);
+
+        const savedRole = getSavedRoleForUser(demoUser, demoEmail);
+        if (savedRole) {
+          redirectToSavedRole(savedRole, "Google AYUSH User");
+        } else {
+          setShowRoleOverlay(true);
+          triggerToast("Logged in with Google (Demo Mode)");
+        }
       }, 400);
     }
   };
 
   const handleRoleSelection = async (role: "patient" | "doctor") => {
-    if (googleUser && isSupabaseConfigured) {
-      const { error } = await supabase.auth.updateUser({
-        data: { app_role: role },
-      });
-      if (error) {
-        triggerToast(error.message || "Could not save your role.");
-        return;
-      }
-    }
+    // 1. Save role to browser storage across all possible keys
     if (typeof window !== "undefined") {
       window.localStorage.setItem("swasthya-setu-role", role);
+      if (email) {
+        window.localStorage.setItem(`swasthya_role_${email.toLowerCase().trim()}`, role);
+      }
+      if (phoneNumber) {
+        window.localStorage.setItem(`swasthya_role_+91${phoneNumber.trim()}`, role);
+        window.localStorage.setItem(`swasthya_role_${phoneNumber.trim()}`, role);
+      }
+      if (googleUser?.id) {
+        window.localStorage.setItem(`swasthya_role_${googleUser.id}`, role);
+      }
+      if (googleUser?.email) {
+        window.localStorage.setItem(`swasthya_role_${googleUser.email.toLowerCase().trim()}`, role);
+      }
+    }
+
+    // 2. Sync to Supabase user_metadata if active session exists
+    if (googleUser && isSupabaseConfigured) {
+      try {
+        await supabase.auth.updateUser({
+          data: { app_role: role },
+        });
+      } catch (err) {
+        console.warn("Could not sync app_role to user metadata", err);
+      }
     }
 
     setShowRoleOverlay(false);
-    triggerToast(role === "doctor" ? "Opening Doctor Portal…" : "Opening Patient Portal…");
+    triggerToast(role === "doctor" ? "Role saved! Opening Doctor Portal…" : "Role saved! Opening Patient Portal…");
     setTimeout(() => {
       window.location.href = role === "doctor" ? "/doctor" : "/patient";
-    }, 300);
+    }, 350);
   };
 
   return (
@@ -1052,6 +1156,22 @@ export default function LoginPage() {
                 </button>
               </div>
 
+            </div>
+
+            {/* Change account / Back option */}
+            <div className="text-center mt-6 relative z-10">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRoleOverlay(false);
+                  if (authMode === "phone") {
+                    setStep("phone");
+                  }
+                }}
+                className="text-xs text-[#7A8B84] dark:text-slate-400 hover:text-[#0E7C4A] dark:hover:text-emerald-400 font-medium transition-colors cursor-pointer"
+              >
+                ← Sign in with a different account
+              </button>
             </div>
 
           </div>

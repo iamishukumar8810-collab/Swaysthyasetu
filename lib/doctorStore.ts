@@ -541,17 +541,18 @@ export function getDoctorNotifications(doctorId?: string, doctorName?: string): 
       queue.forEach((patient, idx) => {
         const key = patient.token || patient.id || patient.userId;
         if (key && !knownKeys.has(key)) {
+          const tokenVal = patient.token || `${100 + idx + 1}`;
           const newNotif: DoctorNotification = {
             id: `notif-q-${patient.id || idx}`,
             doctorId: patient.assignedDoctorId,
-            title: `New Case: ${patient.name} (${patient.token || `AYUH-${String(idx + 1).padStart(3, "0")}`})`,
-            desc: `Token #${idx + 1} (FCFS Queue) | ${patient.chiefComplaint || patient.issue || "Clinical intake submitted"}. Severity: ${patient.severity || "Medium"}`,
+            title: `New Case: ${patient.name} (Token: ${tokenVal})`,
+            desc: `Token Number: ${tokenVal} | ${patient.chiefComplaint || patient.issue || "Clinical intake submitted"}. Severity: ${patient.severity || "Medium"}`,
             time: patient.time || "Recently",
             timestamp: patient.submittedAt || new Date().toISOString(),
             read: false,
             patientId: patient.id,
             patientName: patient.name,
-            token: patient.token || `AYUH-${String(idx + 1).padStart(3, "0")}`,
+            token: tokenVal,
             severity: patient.severity || "Medium",
             type: "new_patient",
           };

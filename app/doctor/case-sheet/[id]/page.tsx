@@ -313,9 +313,9 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
                     </span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Token ID:</span>
+                    <span className="text-slate-500">Token Number:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
-                      {patient?.token || tokenId || "AYUH-001"}
+                      {patient?.token || tokenId || "101"}
                     </span>
                   </div>
                 </div>

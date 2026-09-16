@@ -495,10 +495,10 @@ export default function PatientDashboardPage() {
       const now = new Date().toISOString();
       const summaryId = crypto.randomUUID();
 
-      // Sequential FCFS (First-Come, First-Served) Token Number
+      // Sequential Token Number (e.g. 101, 102, 103...)
       const existingQueue = getDoctorQueue();
       const queuePosition = existingQueue.length + 1;
-      const tokenNumber = `AYUH-${String(queuePosition).padStart(3, "0")}`;
+      const tokenNumber = `${100 + queuePosition}`;
 
       const summary: AIIntakeSummary = {
         id: summaryId,
@@ -550,7 +550,7 @@ export default function PatientDashboardPage() {
         queuePosition,
       };
 
-      // 3. Generate Clinical Summary PDF with FCFS Token
+      // 3. Generate Clinical Summary PDF with Token Number
       const pdf = generateClinicalSummaryPDF(summary);
 
       // 4. Construct comprehensive reports list for doctor download
@@ -612,8 +612,8 @@ export default function PatientDashboardPage() {
       // Trigger instant real-time notification to the assigned doctor
       addDoctorNotification({
         doctorId: assignedDoctor?.id || assignedDoctor?.userId || undefined,
-        title: `New Case: ${summary.patientName} (${tokenNumber})`,
-        desc: `Token #${queuePosition} (FCFS Queue) | AI Intake: ${aiSymptoms.slice(0, 3).join(", ") || summary.chiefComplaint}. Severity: ${summary.severity}.`,
+        title: `New Case: ${summary.patientName} (Token: ${tokenNumber})`,
+        desc: `Token Number: ${tokenNumber} | AI Intake: ${aiSymptoms.slice(0, 3).join(", ") || summary.chiefComplaint}. Severity: ${summary.severity}.`,
         time: "Just now",
         read: false,
         patientId: userId,

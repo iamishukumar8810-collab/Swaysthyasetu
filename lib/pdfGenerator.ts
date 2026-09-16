@@ -88,9 +88,8 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
         return { name, dose: dose || "-", frequency: frequency || "As directed" };
       });
 
-  // FCFS Token & Queue Slot
-  const tokenNumber = summary.tokenNumber || `AYUH-${summary.id.slice(0, 4).toUpperCase()}`;
-  const queuePosition = summary.queuePosition || 1;
+  // Token Number (any digit)
+  const tokenNumber = summary.tokenNumber || (summary.queuePosition ? `${100 + summary.queuePosition}` : "101");
 
   const dateStr = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -108,7 +107,7 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
 
   const streamLines: string[] = [
     // -------------------------------------------------------------
-    // 1. HEADER BANNER (Emerald #0E7C4A) WITH FCFS TOKEN BADGE
+    // 1. HEADER BANNER (Emerald #0E7C4A) WITH TOKEN NUMBER BADGE
     // -------------------------------------------------------------
     "0.05 0.49 0.29 rg",
     "35 765 525 55 re",
@@ -130,31 +129,31 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     `(${sanitizePDFText(`Report Generated: ${dateStr}, ${timeStr}   |   Case ID: ${summary.id.slice(0, 8).toUpperCase()}`)}) Tj`,
     "ET",
 
-    // FCFS Token Badge in Header (Right Corner)
+    // Token Number Badge in Header (Right Corner)
     "1 1 1 rg",
-    "435 770 115 45 re",
+    "440 770 110 45 re",
     "f",
     "0.8 0.89 0.84 RG",
     "1 w",
-    "435 770 115 45 re",
+    "440 770 110 45 re",
     "S",
-    "0.4 0.45 0.4 rg",
+    "0.35 0.4 0.35 rg",
     "BT",
-    "/F2 6.5 Tf",
-    "442 804 Td",
-    "(OPD TOKEN (FCFS QUEUE)) Tj",
+    "/F2 7 Tf",
+    "448 803 Td",
+    "(TOKEN NUMBER) Tj",
     "ET",
     "0.05 0.49 0.29 rg",
     "BT",
-    "/F2 12 Tf",
-    "442 788 Td",
+    "/F2 14 Tf",
+    "448 786 Td",
     `(${sanitizePDFText(tokenNumber)}) Tj`,
     "ET",
-    "0.25 0.35 0.3 rg",
+    "0.4 0.45 0.4 rg",
     "BT",
     "/F1 6.5 Tf",
-    "442 776 Td",
-    `(${sanitizePDFText(`Queue Slot #${queuePosition} | FCFS`)}) Tj`,
+    "448 775 Td",
+    "(OPD Consultation) Tj",
     "ET",
 
     // -------------------------------------------------------------
@@ -177,11 +176,11 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     "BT",
     "/F1 8.5 Tf",
     "48 724 Td",
-    `(${sanitizePDFText(`Patient: ${patientName} (${patientAge}, ${patientGender})   |   Token: ${tokenNumber}`)}) Tj`,
+    `(${sanitizePDFText(`Patient: ${patientName} (${patientAge}, ${patientGender})   |   Token Number: ${tokenNumber}`)}) Tj`,
     "48 709 Td",
     `(${sanitizePDFText(`Contact: ${patientPhone}   |   Patient ID: ${patientId}`)}) Tj`,
     "48 694 Td",
-    `(${sanitizePDFText(`FCFS Queue Order: Slot #${queuePosition}   |   Status: ${intakeStatus} (${readiness})`)}) Tj`,
+    `(${sanitizePDFText(`Status: ${intakeStatus}   |   Case Readiness: ${readiness}`)}) Tj`,
     "ET",
     "BT",
     "/F1 8.5 Tf",
@@ -194,168 +193,110 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     "ET",
 
     // -------------------------------------------------------------
-    // 3. STEP 1: REPORTED SYMPTOMS & CLINICAL ANAMNESIS
+    // 3. REPORTED SYMPTOMS & CLINICAL ANAMNESIS
     // -------------------------------------------------------------
     "0.98 0.99 0.98 rg",
-    "35 528 525 137 re",
+    "35 505 525 160 re",
     "f",
     "0.8 0.89 0.84 RG",
-    "35 528 525 137 re",
+    "35 505 525 160 re",
     "S",
     "0.05 0.49 0.29 rg",
     "BT",
     "/F2 9.5 Tf",
     "48 650 Td",
-    "(STEP 1: REPORTED SYMPTOMS & CLINICAL ANAMNESIS) Tj",
+    "(REPORTED SYMPTOMS & AYUSH CLINICAL EVALUATION) Tj",
     "ET",
     "0.1 0.15 0.12 rg",
     "BT",
     "/F2 8.5 Tf",
-    "48 634 Td",
+    "48 633 Td",
     "(Primary Symptoms:) Tj",
     "ET",
     "BT",
     "/F1 8.5 Tf",
-    "145 634 Td",
+    "145 633 Td",
     `(${sanitizePDFText(truncateText(reportedSymptomsList, 70))}) Tj`,
     "ET",
     "BT",
     "/F2 8.5 Tf",
-    "48 618 Td",
+    "48 616 Td",
     "(Severity Rating:) Tj",
     "ET",
     "BT",
     "/F2 8.5 Tf",
     severityLabel === "High" ? "0.85 0.1 0.1 rg" : severityLabel === "Medium" ? "0.85 0.5 0 rg" : "0.05 0.5 0.2 rg",
-    "145 618 Td",
+    "145 616 Td",
     `(${sanitizePDFText(`${severityScoreText} (${severityLabel} Intensity)`)}   |   Duration: ${sanitizePDFText(durationText)}) Tj`,
     "ET",
     "0.1 0.15 0.12 rg",
     "BT",
     "/F2 8.5 Tf",
-    "48 602 Td",
+    "48 599 Td",
     "(Patient Description:) Tj",
     "ET",
     "BT",
     "/F1 8.5 Tf",
-    "145 602 Td",
+    "145 599 Td",
     `(${sanitizePDFText(`"${truncateText(patientDescription, 68)}"` )}) Tj`,
     "ET",
     "BT",
     "/F2 8.5 Tf",
-    "48 586 Td",
+    "48 582 Td",
     "(AYUSH Dosha Imbalance:) Tj",
     "ET",
     "BT",
     "/F1 8.5 Tf",
-    "170 586 Td",
+    "170 582 Td",
     `(${sanitizePDFText(predictedDosha)}) Tj`,
     "ET",
     "BT",
     "/F2 8.5 Tf",
-    "48 570 Td",
+    "48 565 Td",
     "(Digestive Fire / Agni:) Tj",
     "ET",
     "BT",
     "/F1 8.5 Tf",
-    "170 570 Td",
+    "170 565 Td",
     `(${sanitizePDFText(agniAssessment)}) Tj`,
     "ET",
 
-    // Priority Banner inside Step 1 box
+    // Priority Banner inside Symptoms box
     isRed ? "0.99 0.92 0.92 rg" : "0.93 0.98 0.95 rg",
-    "45 536 505 24 re",
+    "45 515 505 24 re",
     "f",
     isRed ? "0.85 0.2 0.2 RG" : "0.2 0.65 0.35 RG",
-    "45 536 505 24 re",
+    "45 515 505 24 re",
     "S",
     "BT",
     "/F2 8 Tf",
     isRed ? "0.8 0.05 0.05 rg" : "0.05 0.45 0.2 rg",
-    "55 545 Td",
+    "55 524 Td",
     `(${sanitizePDFText(isRed ? `CLINICAL ALERT: High Priority Flag - ${redReasons}` : "CLINICAL PRIORITY: Normal OPD Consultation Queue (No emergency flags detected)")}) Tj`,
     "ET",
 
     // -------------------------------------------------------------
-    // 4. STEP 2: UPLOADED DIAGNOSTIC REPORTS & DOCUMENTS
+    // 4. CURRENT MEDICATIONS & HERBAL SUPPLEMENTS
     // -------------------------------------------------------------
     "0.98 0.99 0.98 rg",
-    "35 428 525 90 re",
+    "35 358 525 137 re",
     "f",
     "0.8 0.89 0.84 RG",
-    "35 428 525 90 re",
+    "35 358 525 137 re",
     "S",
     "0.05 0.49 0.29 rg",
     "BT",
     "/F2 9.5 Tf",
-    "48 503 Td",
-    "(STEP 2: PATIENT-UPLOADED REPORTS & DIAGNOSTIC DOCUMENTS) Tj",
-    "ET",
+    "48 480 Td",
+    "(CURRENT MEDICATIONS, SUPPLEMENTS & REMEDIES) Tj",
+    "ET"
   ];
 
-  // Render Step 2 Reports lines
-  if (reportsDetail.length > 0) {
-    let repY = 487;
-    reportsDetail.slice(0, 3).forEach((rep, idx) => {
-      const repLine = sanitizePDFText(
-        `[${idx + 1}] ${truncateText(rep.name, 45)}  |  Format: ${rep.type || "PDF"}  |  Size: ${rep.size || "Attached"}`
-      );
-      streamLines.push(
-        "0.1 0.15 0.12 rg",
-        "BT",
-        "/F1 8.5 Tf",
-        `48 ${repY} Td`,
-        `(${repLine}) Tj`,
-        "ET"
-      );
-      repY -= 15;
-    });
-    if (reportsDetail.length > 3) {
-      streamLines.push(
-        "0.35 0.4 0.38 rg",
-        "BT",
-        "/F1 8 Tf",
-        `48 ${repY} Td`,
-        `(${sanitizePDFText(`+ ${reportsDetail.length - 3} more attached reports in electronic case folder`)}) Tj`,
-        "ET"
-      );
-    }
-  } else {
-    streamLines.push(
-      "0.35 0.4 0.38 rg",
-      "BT",
-      "/F1 8.5 Tf",
-      "48 485 Td",
-      "(No prior diagnostic reports or lab investigations uploaded by patient for this visit.) Tj",
-      "48 470 Td",
-      "(Attending physician may advise fresh clinical investigations during consultation.) Tj",
-      "ET"
-    );
-  }
-
-  // -------------------------------------------------------------
-  // 5. STEP 3: CURRENT MEDICATIONS & HERBAL SUPPLEMENTS
-  // -------------------------------------------------------------
-  streamLines.push(
-    "0.98 0.99 0.98 rg",
-    "35 328 525 90 re",
-    "f",
-    "0.8 0.89 0.84 RG",
-    "35 328 525 90 re",
-    "S",
-    "0.05 0.49 0.29 rg",
-    "BT",
-    "/F2 9.5 Tf",
-    "48 403 Td",
-    "(STEP 3: CURRENT MEDICATIONS, SUPPLEMENTS & REMEDIES) Tj",
-    "ET"
-  );
-
   if (medicinesDetail.length > 0) {
-    let medY = 387;
-    medicinesDetail.slice(0, 3).forEach((med, idx) => {
+    let medY = 460;
+    medicinesDetail.slice(0, 5).forEach((med, idx) => {
       const medLine = sanitizePDFText(
-        `[${idx + 1}] ${truncateText(med.name, 35)}  --  Dose: ${med.dose || "-"}  |  Frequency: ${med.frequency || "Once a day"}`
+        `[${idx + 1}] ${truncateText(med.name, 40)}   |   Dose: ${med.dose || "-"}   |   Frequency: ${med.frequency || "Once a day"}`
       );
       streamLines.push(
         "0.1 0.15 0.12 rg",
@@ -365,15 +306,15 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
         `(${medLine}) Tj`,
         "ET"
       );
-      medY -= 15;
+      medY -= 16;
     });
-    if (medicinesDetail.length > 3) {
+    if (medicinesDetail.length > 5) {
       streamLines.push(
         "0.35 0.4 0.38 rg",
         "BT",
         "/F1 8 Tf",
         `48 ${medY} Td`,
-        `(${sanitizePDFText(`+ ${medicinesDetail.length - 3} more active medicines listed`)}) Tj`,
+        `(${sanitizePDFText(`+ ${medicinesDetail.length - 5} more active medicines listed`)}) Tj`,
         "ET"
       );
     }
@@ -382,35 +323,35 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
       "0.35 0.4 0.38 rg",
       "BT",
       "/F1 8.5 Tf",
-      "48 385 Td",
+      "48 450 Td",
       "(No current pharmaceutical, over-the-counter, or Ayurvedic medicines reported.) Tj",
-      "48 370 Td",
-      "(Patient has no known active drug regimens recorded at the time of intake.) Tj",
+      "48 434 Td",
+      "(Patient has no active drug interactions recorded at the time of intake.) Tj",
       "ET"
     );
   }
 
   // -------------------------------------------------------------
-  // 6. STEP 4: AI ANAMNESIS TRANSCRIPT & CLINICAL GUIDANCE
+  // 5. AI ANAMNESIS TRANSCRIPT & CLINICAL GUIDANCE
   // -------------------------------------------------------------
   streamLines.push(
     "0.98 0.99 0.98 rg",
-    "35 155 525 163 re",
+    "35 150 525 198 re",
     "f",
     "0.8 0.89 0.84 RG",
-    "35 155 525 163 re",
+    "35 150 525 198 re",
     "S",
     "0.05 0.49 0.29 rg",
     "BT",
     "/F2 9.5 Tf",
-    "48 303 Td",
-    "(STEP 4: AI CLINICAL INTAKE TRANSCRIPT & PRE-CONSULTATION GUIDANCE) Tj",
+    "48 333 Td",
+    "(AI CLINICAL INTAKE TRANSCRIPT & PRE-CONSULTATION GUIDANCE) Tj",
     "ET"
   );
 
-  let curY = 287;
+  let curY = 314;
   if (meaningfulHistory.length > 0) {
-    meaningfulHistory.slice(-5).forEach((item) => {
+    meaningfulHistory.slice(-7).forEach((item) => {
       const isUser = item.from === "user";
       const speaker = isUser ? "Patient: " : "AI Assistant: ";
       let clean = item.text.replace(/<!--[\s\S]*?-->/g, "").replace(/[\r\n]+/g, " ").trim();
@@ -424,7 +365,7 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
         `(${sanitized}) Tj`,
         "ET"
       );
-      curY -= 14;
+      curY -= 15;
     });
   } else {
     streamLines.push(
@@ -435,7 +376,7 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
       `(${sanitizePDFText(`Structured Intake: ${reportedSymptomsList} | Severity: ${severityLabel} | Duration: ${durationText}`)}) Tj`,
       "ET"
     );
-    curY -= 14;
+    curY -= 15;
   }
 
   // Pre-consultation guidance note inside the box
@@ -443,41 +384,41 @@ export function generateClinicalSummaryPDF(summary: AIIntakeSummary): GeneratedP
     "0.15 0.2 0.4 rg",
     "BT",
     "/F2 8 Tf",
-    `48 ${Math.max(curY, 175)} Td`,
+    `48 ${Math.max(curY, 162)} Td`,
     `(${sanitizePDFText(`Clinical Note for Dr. ${assignedDoctor}: Correlate ${predictedDosha} with physical pulse/Nadi & Dashavidha Pariksha.`)}) Tj`,
     "ET"
   );
 
   // -------------------------------------------------------------
-  // 7. FOOTER: VERIFICATION, SIGNATURE & COMPLIANCE
+  // 6. FOOTER: VERIFICATION, SIGNATURE & COMPLIANCE
   // -------------------------------------------------------------
   streamLines.push(
     "0.94 0.96 0.95 rg",
-    "35 45 525 100 re",
+    "35 40 525 100 re",
     "f",
     "0.75 0.85 0.8 RG",
-    "35 45 525 100 re",
+    "35 40 525 100 re",
     "S",
     "0.05 0.49 0.29 rg",
     "BT",
     "/F2 8.5 Tf",
-    "48 130 Td",
+    "48 125 Td",
     "(OFFICIAL SWASTHYA SETU AYUSH DIGITAL CLINICAL RECORD - VERIFIED INTAKE) Tj",
     "ET",
     "0.3 0.35 0.32 rg",
     "BT",
     "/F1 7.5 Tf",
-    "48 116 Td",
-    `(${sanitizePDFText(`Transmitted to Dr. ${assignedDoctor} OPD Queue   |   Case Token: ${summary.id}   |   Date: ${dateStr}`)}) Tj`,
-    "48 103 Td",
-    "(This clinical record was generated automatically from patient-submitted responses across all 4 intake steps.) Tj",
-    "48 90 Td",
+    "48 111 Td",
+    `(${sanitizePDFText(`Transmitted to Dr. ${assignedDoctor} OPD Queue   |   Token: ${tokenNumber}   |   Date: ${dateStr}`)}) Tj`,
+    "48 98 Td",
+    "(This clinical record was generated automatically from patient-submitted responses during AI pre-consultation.) Tj",
+    "48 85 Td",
     "(National Digital Health Mission (NDHM) & ABHA Compliant Record | Verified AYUSH OPD Data Flow.) Tj",
     "ET",
     "0.1 0.15 0.12 rg",
     "BT",
     "/F2 8 Tf",
-    "48 68 Td",
+    "48 58 Td",
     `(${sanitizePDFText(`Physician Signature: _______________________________       Consultation Date: ${dateStr}`)}) Tj`,
     "ET"
   );
