@@ -1,4 +1,6 @@
 // Server-side provider wrapper with simple fallback logic
+import { evaluateAyushDoshaAndAgni } from './redFlag';
+
 type Message = { role: 'system' | 'user' | 'assistant'; content: string };
 
 // External callers (API routes) may pass a plain `{ role: string; content: string }` type.
@@ -92,13 +94,11 @@ async function callFallbackMock(providerName: string, messages: Message[]) {
     duration = "1-2 weeks (Sub-acute)";
   }
 
-  let dosha = "Vata-Pitta Aggravation";
-  let agni = "Vishamagni";
+  const ayushEval = evaluateAyushDoshaAndAgni(userMessages, allUserText);
+  const dosha = ayushEval.dosha;
+  const agni = ayushEval.agni;
 
   if (allUserText.includes('joint') || allUserText.includes('knee') || allUserText.includes('back') || allUserText.includes('kamar') || allUserText.includes('dard') || allUserText.includes('pain') || allUserText.includes('stiff')) {
-    dosha = "Vata-Kapha Aggravation (Sandhigata Vata)";
-    agni = "Manda Agni (Sluggish Digestive Fire)";
-
     if (isFinalize || turnCount >= 4) {
       reply = `आपके जोड़ों/दर्द से संबंधित सभी मुख्य लक्षण (अवधि: ${duration}, तीव्रता: ${severity}) दर्ज कर लिए गए हैं।\n\nआपकी AI Clinical Consultation Report तैयार है। "📋 Generate Clinical Report" बटन पर क्लिक करके PDF प्राप्त करें।`;
     } else if (turnCount === 1) {
@@ -109,9 +109,6 @@ async function callFallbackMock(providerName: string, messages: Message[]) {
       reply = `अवधि व स्थिति नोट कर ली गई है। क्या इसके साथ कमर या पैरों में खिंचाव (radiation) या भारीपन भी रहता है? और क्या इसके लिए आपने हाल ही में कोई पेनकिलर, मालिश का तेल या आयुर्वेदिक दवा ली है?`;
     }
   } else if (allUserText.includes('acid') || allUserText.includes('jalan') || allUserText.includes('pet') || allUserText.includes('stomach') || allUserText.includes('gas') || allUserText.includes('kabj') || allUserText.includes('digest')) {
-    dosha = "Pitta-Kapha Aggravation (Amlapitta & Agnimandya)";
-    agni = "Tikshnagni (Hyperactive / Acidic Digestive Fire)";
-
     if (isFinalize || turnCount >= 4) {
       reply = `पेट और पाचन संबंधी लक्षण (अवधि: ${duration}, तीव्रता: ${severity}) दर्ज किए गए हैं।\n\nAI Clinical Report तैयार है — "📋 Generate Clinical Report" बटन दबाकर PDF प्राप्त करें।`;
     } else if (turnCount === 1) {
@@ -122,9 +119,6 @@ async function callFallbackMock(providerName: string, messages: Message[]) {
       reply = `समझ गया। क्या चाय, मिर्च-मसालेदार या तला-भुना खाने से यह समस्या और बढ़ जाती है? और क्या आपका पेट रोज़ सुबह सही तरह से साफ हो रहा है या कब्ज (constipation) की समस्या है?`;
     }
   } else if (allUserText.includes('cough') || allUserText.includes('cold') || allUserText.includes('kaph') || allUserText.includes('gala') || allUserText.includes('throat') || allUserText.includes('fever') || allUserText.includes('bukhar')) {
-    dosha = "Kapha-Vata Aggravation (Pranavaha Srotorodha)";
-    agni = "Manda Agni";
-
     if (isFinalize || turnCount >= 4) {
       reply = `गले/श्वसन सम्बन्धी लक्षण दर्ज हो चुके हैं।\n\nAI Clinical Triage Summary तैयार है — "📋 Generate Clinical Report" बटन दबाकर रिपोर्ट डाउनलोड करें।`;
     } else if (turnCount === 1) {
@@ -133,6 +127,18 @@ async function callFallbackMock(providerName: string, messages: Message[]) {
       reply = `यह तकलीफ़ कितने दिनों से है? और क्या रात में या ठंडी हवा में सांस लेने या खांसने में परेशानी बढ़ती है? तीव्रता (Mild/Medium/High) बताएं।`;
     } else {
       reply = `लक्षण दर्ज हो गए हैं। क्या आपने इसके लिए कोई काढ़ा, गर्म पानी या कोई दवा ली है? क्या छाती में भारीपन महसूस होता है?`;
+    }
+  } else if (allUserText.includes('fatigue') || allUserText.includes('weak') || allUserText.includes('kamzori') || allUserText.includes('thakan')) {
+    if (isFinalize || turnCount >= 4) {
+      reply = `थकान व कमज़ोरी सम्बन्धी सभी लक्षण दर्ज किए गए हैं।\n\nAYUSH Clinical Triage Report तैयार है।`;
+    } else {
+      reply = `थकान और कमज़ोरी के लक्षण नोट कर लिए गए हैं। क्या इसके साथ नींद में कमी या भूख न लगना भी महसूस होता है?`;
+    }
+  } else if (allUserText.includes('headache') || allUserText.includes('sir dard') || allUserText.includes('head')) {
+    if (isFinalize || turnCount >= 4) {
+      reply = `सिरदर्द सम्बन्धी सभी लक्षण दर्ज किए गए हैं।\n\nAYUSH Clinical Triage Report तैयार है।`;
+    } else {
+      reply = `सिरदर्द का लक्षण नोट किया गया है। क्या यह दर्द सिर के एक तरफ है या दोनों तरफ? क्या धूप या तनाव से यह बढ़ता है?`;
     }
   } else {
     // General symptoms

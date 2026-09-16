@@ -26,6 +26,7 @@ import {
 import { AIIntakeSummary, saveAIIntakeSummary, getAIIntakeSummary } from "@/lib/aiIntakeStore";
 import { generateClinicalSummaryPDF, downloadPDF } from "@/lib/pdfGenerator";
 import { addReportToPatientData, MedicalReport } from "@/lib/patient-data";
+import { evaluateAyushDoshaAndAgni } from "@/lib/redFlag";
 
 type Message = {
   id: string;
@@ -276,20 +277,10 @@ export default function Chatbot({
   ) => {
     const lower = (finalComplaint + " " + finalAssociated).toLowerCase();
     
-    // AYUSH Dosha Imbalance Clinical Assessment
-    let dosha = "Vata-Pitta Aggravation (Dhatu Kshaya)";
-    let agni = "Vishamagni (Irregular digestive fire)";
-
-    if (lower.includes("joint") || lower.includes("back") || lower.includes("knee") || lower.includes("pain") || lower.includes("dard") || lower.includes("stiff")) {
-      dosha = "Vata-Kapha Aggravation (Sandhigata Vata / Asthi-Majja Dhatu)";
-      agni = "Manda Agni (Sluggish metabolism)";
-    } else if (lower.includes("acid") || lower.includes("jalan") || lower.includes("pet") || lower.includes("stomach") || lower.includes("heartburn") || lower.includes("gas")) {
-      dosha = "Pitta-Kapha Aggravation (Amlapitta & Agnimandya)";
-      agni = "Tikshnagni (Hyper-metabolic / Acidic fire)";
-    } else if (lower.includes("cold") || lower.includes("cough") || lower.includes("throat") || lower.includes("kaph")) {
-      dosha = "Kapha-Vata Aggravation (Pranavaha Srotorodha)";
-      agni = "Manda Agni";
-    }
+    // Dynamic AYUSH Dosha Imbalance Clinical Assessment
+    const ayushEval = evaluateAyushDoshaAndAgni([finalComplaint, finalAssociated], lower);
+    const dosha = ayushEval.dosha;
+    const agni = ayushEval.agni;
 
     // Red flag evaluation
     const isRed = 

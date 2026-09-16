@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { callLLM } from '../../../lib/llm-providers';
-import { checkRedFlags } from '../../../lib/redFlag';
+import { checkRedFlags, evaluateAyushDoshaAndAgni } from '../../../lib/redFlag';
 
 export async function POST(req: Request) {
   try {
@@ -92,23 +92,15 @@ Clinical Communication Guidelines:
       if (lower.includes('month') || lower.includes('महीने')) dur = "1-3 months";
       else if (lower.includes('day') || lower.includes('दिन')) dur = "2-4 days";
 
-      let dosha = "Vata-Pitta Aggravation";
-      let agni = "Vishamagni";
-      if (lower.includes('joint') || lower.includes('knee') || lower.includes('back') || lower.includes('dard') || lower.includes('pain')) {
-        dosha = "Vata-Kapha Aggravation (Sandhigata Vata)";
-        agni = "Manda Agni";
-      } else if (lower.includes('acid') || lower.includes('jalan') || lower.includes('pet') || lower.includes('gas') || lower.includes('stomach')) {
-        dosha = "Pitta-Kapha Aggravation (Amlapitta)";
-        agni = "Tikshnagni";
-      }
+      const ayushEval = evaluateAyushDoshaAndAgni([metadata?.complaint || userMessage], lower);
 
       clinicalEval = {
         complaint: metadata?.complaint || userMessage,
         severity: sev,
         duration: dur,
         associated: metadata?.associated || "Reported during consultation",
-        dosha,
-        agni,
+        dosha: ayushEval.dosha,
+        agni: ayushEval.agni,
         readyForReport: historyCount >= 3 || isFinalizeRequested
       };
     }

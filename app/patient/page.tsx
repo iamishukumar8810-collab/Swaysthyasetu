@@ -50,6 +50,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { 
   initialPatientData, 
   getStoredPatientData,
+  addReportToPatientData,
   PatientProfile, 
   Medication, 
   ConsultationVisit, 
@@ -59,6 +60,7 @@ import { DoctorProfile, getDoctors, getPublishedDoctorsFromSupabase, subscribeTo
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { generateClinicalSummaryPDF, downloadPDF } from "@/lib/pdfGenerator";
 import { AIIntakeSummary, saveAIIntakeSummary } from "@/lib/aiIntakeStore";
+import { evaluateAyushDoshaAndAgni } from "@/lib/redFlag";
 
 export default function PatientDashboardPage() {
   const { t, language } = useLanguage();
@@ -324,60 +326,80 @@ export default function PatientDashboardPage() {
     }
 
     const reportId = crypto.randomUUID();
-    let uploadedToCloud = false;
     let storagePath = "";
     let uploadedUrl = "";
+    let uploadedToCloud = false;
 
-    if (!isSupabaseConfigured) {
-      triggerToast("Supabase is not configured. Cannot save this report.");
-      return;
-    }
+    // Convert file to Base64 Data URL so it is immediately viewable, downloadable, and permanently attached
+    const readAsDataUrl = (f: File): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(f);
+      });
 
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
-        triggerToast(userError?.message || "Please sign in with Google before uploading a report.");
-        return;
-      }
-
-      storagePath = `${userData.user.id}/${reportId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
-      const { error: uploadError } = await supabase.storage
-        .from("medical-reports")
-        .upload(storagePath, file, { contentType: file.type, upsert: false });
-      if (uploadError) throw new Error(uploadError.message || "Storage upload failed.");
-
-      const { data: signed, error: signedError } = await supabase.storage
-        .from("medical-reports")
-        .createSignedUrl(storagePath, 60 * 60);
-      if (signedError) throw new Error(signedError.message || "Could not create report download link.");
-      uploadedUrl = signed?.signedUrl || "";
-
-      const { error: reportError } = await supabase.from("medical_reports").insert({
-        id: reportId,
-        patient_id: userData.user.id,
-        uploaded_by: userData.user.id,
-        name: file.name,
-        document_type: file.type === "application/pdf" ? "PDF" : "Image",
-        storage_path: storagePath,
-        file_size_bytes: file.size,
-        mime_type: file.type,
-      });
-      if (reportError) throw new Error(reportError.message || "Could not save report metadata.");
-      uploadedToCloud = true;
-    } catch (error) {
-      triggerToast(error instanceof Error ? error.message : "Report upload failed.");
-      return;
+      uploadedUrl = await readAsDataUrl(file);
+    } catch {
+      uploadedUrl = URL.createObjectURL(file);
     }
 
-    setAiReports((current) => [...current, {
+    // Also attempt cloud sync if Supabase is available and user is authenticated
+    if (isSupabaseConfigured) {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          storagePath = `${userData.user.id}/${reportId}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+          const { error: uploadError } = await supabase.storage
+            .from("medical-reports")
+            .upload(storagePath, file, { contentType: file.type, upsert: false });
+          if (!uploadError) {
+            const { data: signed } = await supabase.storage
+              .from("medical-reports")
+              .createSignedUrl(storagePath, 60 * 60);
+            if (signed?.signedUrl) uploadedUrl = signed.signedUrl;
+            await supabase.from("medical_reports").insert({
+              id: reportId,
+              patient_id: userData.user.id,
+              uploaded_by: userData.user.id,
+              name: file.name,
+              document_type: file.type === "application/pdf" ? "PDF" : "Image",
+              storage_path: storagePath,
+              file_size_bytes: file.size,
+              mime_type: file.type,
+            });
+            uploadedToCloud = true;
+          }
+        }
+      } catch (err) {
+        console.warn("Cloud report upload skipped, saving locally", err);
+      }
+    }
+
+    const newReportItem = {
       id: reportId,
       name: file.name,
       storagePath: storagePath || undefined,
-      url: uploadedUrl || undefined,
+      url: uploadedUrl,
       type: file.type,
       size: file.size,
-    }]);
-    triggerToast(uploadedToCloud ? "Report uploaded to cloud successfully." : "Report upload failed.");
+    };
+
+    setAiReports((current) => [...current, newReportItem]);
+
+    // Also attach to patient's reports database
+    const medicalReport: MedicalReport = {
+      id: reportId,
+      name: file.name,
+      date: "Today",
+      type: file.type === "application/pdf" ? "PDF" : "Image",
+      size: file.size ? (file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : `${Math.round(file.size / 1024)} KB`) : "180 KB",
+      url: uploadedUrl,
+    };
+    addReportToPatientData(medicalReport);
+
+    triggerToast(uploadedToCloud ? `Report "${file.name}" attached & synced to cloud!` : `Report "${file.name}" attached successfully!`);
   };
 
   const submitAiCase = async (doctorToAssign?: DoctorProfile | null) => {
@@ -417,16 +439,17 @@ export default function PatientDashboardPage() {
         ...aiMedicines.map((medicine) => ({ from: "user", text: `Medicine: ${medicine.name}, ${medicine.dose}, ${medicine.frequency}`, time: new Date().toISOString() })),
       ];
 
-      // 2. Clinical assessment with offline fallback
+      // 2. Clinical assessment with accurate dynamic AYUSH symptom engine
+      const dynamicAyush = evaluateAyushDoshaAndAgni(aiSymptoms, aiDescription.trim());
       let evaluation = {
-        complaint: aiSymptoms.join(", ") || "General AYUSH consultation",
+        complaint: aiDescription.trim() || aiSymptoms.join(", ") || "General AYUSH consultation",
         severity: aiSeverity >= 7 ? "High" : aiSeverity >= 4 ? "Medium" : "Mild",
-        duration: "Recent onset",
-        associated: "None reported",
-        dosha: "Vata-Pitta Balance",
-        agni: "Samagni",
+        duration: durationInput.trim() || "Recent onset",
+        associated: aiSymptoms.length > 1 ? aiSymptoms.slice(1).join(", ") : "None reported",
+        dosha: dynamicAyush.dosha,
+        agni: dynamicAyush.agni,
       };
-      let aiText = "Clinical assessment recorded.";
+      let aiText = `Recorded ${aiSymptoms.length} clinical symptoms with ${dynamicAyush.dosha} assessment for physician review.`;
 
       try {
         const analysisResponse = await fetch("/api/chat", {
@@ -446,7 +469,12 @@ export default function PatientDashboardPage() {
         if (analysisResponse.ok) {
           const analysis = await analysisResponse.json();
           if (analysis.clinicalEval) {
-            evaluation = { ...evaluation, ...analysis.clinicalEval };
+            evaluation = {
+              ...evaluation,
+              ...analysis.clinicalEval,
+              dosha: analysis.clinicalEval.dosha || dynamicAyush.dosha,
+              agni: analysis.clinicalEval.agni || dynamicAyush.agni,
+            };
           }
           if (analysis.text) aiText = analysis.text;
         }
