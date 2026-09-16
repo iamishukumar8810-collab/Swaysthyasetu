@@ -25,30 +25,76 @@ import {
   subscribeToAIIntake,
   markAIIntakeAccepted,
 } from "@/lib/aiIntakeStore";
+import {
+  QueuedPatient,
+  QueuedPatientReport,
+  getDoctorQueue,
+  subscribeToDoctorQueue,
+  downloadPatientReport,
+} from "@/lib/doctorStore";
 
 export default function DoctorCaseSheetPage({ params }: { params: { id: string } }) {
   const tokenId = params.id || "";
   const [activeTab, setActiveTab] = useState<"summary" | "timeline" | "documents" | "ayush" | "edit">("summary");
   const [isVerified, setIsVerified] = useState(false);
-  const [doctorNotes, setDoctorNotes] = useState("Patient advised Pathya Ahara (light diet, avoid fermented/spicy food). Sutashekhara Rasa 1 tab BD and Kamadudha Rasa initiated.");
+  const [doctorNotes, setDoctorNotes] = useState("");
+
+  // Patient & Queue State
+  const [patient, setPatient] = useState<QueuedPatient | null>(null);
+  const [aiIntake, setAiIntake] = useState<AIIntakeSummary | null>(null);
+  const [selectedReportIndex, setSelectedReportIndex] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(100);
 
   // Editable fields
-  const [chiefComplaint, setChiefComplaint] = useState("Epigastric stomach pain and severe heartburn/acidity for 2 days, aggravated post-meals.");
-  const [currentMeds, setCurrentMeds] = useState("Pantoprazole 40mg OD, Antacid Gel");
+  const [chiefComplaint, setChiefComplaint] = useState("");
+  const [currentMeds, setCurrentMeds] = useState("");
   const [prakriti, setPrakriti] = useState("Pitta-Kapha");
   const [agni, setAgni] = useState("Tikshna / Vishama (Hyper-acidic)");
   const [koshtha, setKoshtha] = useState("Krura (Mild Constipation)");
 
-  // AI Intake Integration
-  const [aiIntake, setAiIntake] = useState<AIIntakeSummary | null>(null);
-
   useEffect(() => {
-    setAiIntake(getAIIntakeSummary());
-    const unsub = subscribeToAIIntake((updated) => {
+    const queue = getDoctorQueue();
+    const foundPatient = queue.find(
+      (p) => p.token === tokenId || p.id === tokenId || p.userId === tokenId
+    );
+    if (foundPatient) {
+      setPatient(foundPatient);
+      setChiefComplaint(foundPatient.chiefComplaint || foundPatient.issue || "General AYUSH consultation");
+      if (foundPatient.medicines && foundPatient.medicines.length > 0) {
+        setCurrentMeds(foundPatient.medicines.join(", "));
+      }
+      if (foundPatient.prakriti) {
+        setPrakriti(foundPatient.prakriti);
+      }
+    }
+
+    const summary = getAIIntakeSummary();
+    setAiIntake(summary);
+    if (summary && !foundPatient) {
+      setChiefComplaint(`${summary.chiefComplaint} (Intensity: ${summary.severity}, Duration: ${summary.duration})`);
+      if (summary.currentMedicines) setCurrentMeds(summary.currentMedicines);
+      if (summary.predictedDosha) setPrakriti(summary.predictedDosha);
+      if (summary.agniAssessment) setAgni(summary.agniAssessment);
+    }
+
+    const unsubQueue = subscribeToDoctorQueue((updatedQueue) => {
+      const p = updatedQueue.find(
+        (item) => item.token === tokenId || item.id === tokenId || item.userId === tokenId
+      );
+      if (p) {
+        setPatient(p);
+      }
+    });
+
+    const unsubIntake = subscribeToAIIntake((updated) => {
       setAiIntake(updated);
     });
-    return () => unsub();
-  }, []);
+
+    return () => {
+      unsubQueue();
+      unsubIntake();
+    };
+  }, [tokenId]);
 
   const handleApplyAIIntake = () => {
     if (!aiIntake) return;
@@ -205,7 +251,7 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Chief Complaint</span>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1">
-                    {chiefComplaint}
+                    {chiefComplaint || patient?.chiefComplaint || patient?.issue || "General Consultation"}
                   </p>
                 </div>
 
@@ -213,29 +259,31 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">History of Present Illness</span>
                     <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">
-                      Pain described as moderate burning sensation in retrosternal and epigastric region. Aggravated after taking spicy food and during late nights. Accompanied by sour belching and bloating.
+                      {patient?.chiefComplaint || aiIntake?.chiefComplaint || "Clinical symptoms recorded during intake."} Duration: {patient?.duration || aiIntake?.duration || "Recent onset"}. Severity level: {patient?.severity || aiIntake?.severity || "Moderate"}.
                     </p>
                   </div>
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Past Treatments & Current Rx</span>
                     <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 font-mono">
-                      {currentMeds}
+                      {currentMeds || "No active medications reported"}
                     </p>
                   </div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Associated Symptoms (Lakshanas)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Reported Symptoms (Lakshanas)</span>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
-                      Acidity / Heartburn (Amlodgara)
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
-                      Bloating (Adhmana)
-                    </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium">
-                      Mild Constipation
-                    </span>
+                    {(patient?.reportedSymptoms && patient.reportedSymptoms.length > 0
+                      ? patient.reportedSymptoms
+                      : (aiIntake?.reportedSymptoms || ["Acidity / Heartburn", "Bloating"])
+                    ).map((sym, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800"
+                      >
+                        {sym}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -246,21 +294,29 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
               <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 text-xs">
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white">Patient Demographics</h3>
                 <div className="space-y-2">
-                    <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                     <span className="text-slate-500">Name:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{aiIntake?.patientName || '—'}</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {patient?.name || aiIntake?.patientName || "Patient"}
+                    </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                     <span className="text-slate-500">Age / Gender:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">45 Y / Male</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {(patient?.patientAge || patient?.age || aiIntake?.patientAge || "—")} Y / {(patient?.patientGender || patient?.gender || aiIntake?.patientGender || "—")}
+                    </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                     <span className="text-slate-500">Contact:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">+91 98765 43210</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                      {patient?.phone || aiIntake?.patientPhone || "—"}
+                    </span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-slate-500">ABHA Health ID:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">14-2345-6789-0123</span>
+                    <span className="text-slate-500">Token ID:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                      {patient?.token || tokenId || "AYUH-001"}
+                    </span>
                   </div>
                 </div>
 
@@ -293,104 +349,216 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
             <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-emerald-200 dark:before:bg-emerald-800">
               <div className="relative">
                 <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-emerald-600 ring-4 ring-emerald-100 dark:ring-emerald-950" />
-                <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400">Current Visit (Today)</span>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Pre-Consultation Intake</h4>
+                <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                  Current Visit ({patient?.date || "Today"})
+                </span>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Pre-Consultation Intake & Triage
+                </h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                  Chief complaint: Stomach burning & acidity for 2 days. AI pre-consultation initiated.
+                  Chief complaint: {chiefComplaint || patient?.chiefComplaint || "Clinical symptoms"}. Duration: {patient?.duration || aiIntake?.duration || "Recent"}. Severity: {patient?.severity || aiIntake?.severity || "Moderate"}.
                 </p>
               </div>
 
-              <div className="relative">
-                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-teal-500 ring-4 ring-teal-100 dark:ring-teal-950" />
-                <span className="text-xs font-mono font-bold text-teal-700 dark:text-teal-400">Jan 12, 2024</span>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Prescription by Dr. Verma (AYUSH Clinic)</h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                  Diagnosis: Non-ulcer Dyspepsia / Gastritis. Prescribed Pantoprazole 40mg OD and Antacid Syrup for 10 days.
-                </p>
-              </div>
+              {currentMeds && (
+                <div className="relative">
+                  <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-teal-500 ring-4 ring-teal-100 dark:ring-teal-950" />
+                  <span className="text-xs font-mono font-bold text-teal-700 dark:text-teal-400">Current Medications Active</span>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Active Treatment Regimen</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 font-mono">
+                    {currentMeds}
+                  </p>
+                </div>
+              )}
 
-              <div className="relative">
-                <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-slate-400 ring-4 ring-slate-100 dark:ring-slate-800" />
-                <span className="text-xs font-mono font-bold text-slate-500">Nov 18, 2023</span>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Routine Annual Health Checkup</h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                  Mild gastric acidity noted. LFT and Renal panel within normal limits.
-                </p>
-              </div>
+              {(patient?.reports || []).length > 0 && (
+                <div className="relative">
+                  <span className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-100 dark:ring-blue-950" />
+                  <span className="text-xs font-mono font-bold text-blue-700 dark:text-blue-400">Attached Documents</span>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Patient Medical Records</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                    {patient?.reports?.length} attached clinical report(s) uploaded for physician review.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* TAB 3: SPLIT OCR DOCUMENT INSPECTOR */}
-        {activeTab === "documents" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left: Document Image Viewer */}
-            <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Uploaded Document: Prescription_DrVerma_Jan2024.jpg
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-                    <ZoomIn className="w-4 h-4" />
-                  </button>
-                  <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-                    <ZoomOut className="w-4 h-4" />
-                  </button>
+        {activeTab === "documents" && (() => {
+          const reportsList: QueuedPatientReport[] = (patient?.reports && patient.reports.length > 0)
+            ? patient.reports
+            : (aiIntake?.uploadedReportsDetail || []).map((r, i) => ({
+                id: `rep-${i}`,
+                name: r.name,
+                type: r.type || "Document",
+                size: r.size,
+                url: undefined,
+              }));
+
+          const activeReport = reportsList[selectedReportIndex] || reportsList[0];
+
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left: Document Image/PDF Viewer */}
+              <div className="lg:col-span-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 space-y-3">
+                {/* File selector tabs if multiple */}
+                {reportsList.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    {reportsList.map((rep, idx) => (
+                      <button
+                        key={rep.id || idx}
+                        type="button"
+                        onClick={() => setSelectedReportIndex(idx)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                          selectedReportIndex === idx
+                            ? "bg-emerald-600 text-white shadow-xs"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span className="truncate max-w-[140px]">{rep.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">
+                      {activeReport ? `File: ${activeReport.name}` : "No documents uploaded"}
+                    </span>
+                    {activeReport && (
+                      <span className="text-[10px] text-slate-400">
+                        {activeReport.type} {activeReport.size ? `• ${activeReport.size}` : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel((z) => Math.min(z + 20, 200))}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                      title="Zoom in"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomLevel((z) => Math.max(z - 20, 60))}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                      title="Zoom out"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    {activeReport && (
+                      <button
+                        type="button"
+                        onClick={() => downloadPatientReport(activeReport)}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1 shadow-xs ml-1"
+                        title="Download file"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Download</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Document Display Canvas */}
+                <div className="h-96 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 font-mono text-xs text-slate-800 dark:text-slate-200 overflow-auto flex items-center justify-center">
+                  {activeReport ? (
+                    activeReport.url && activeReport.url.startsWith("data:image") ? (
+                      <div className="w-full h-full flex items-center justify-center overflow-auto">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={activeReport.url}
+                          alt={activeReport.name}
+                          style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: "top center" }}
+                          className="max-h-full max-w-full object-contain rounded-lg shadow-sm transition-transform"
+                        />
+                      </div>
+                    ) : activeReport.url && (activeReport.url.startsWith("data:application/pdf") || activeReport.url.startsWith("http://") || activeReport.url.startsWith("https://") || activeReport.url.startsWith("blob:")) ? (
+                      <iframe
+                        src={activeReport.url}
+                        title={activeReport.name}
+                        className="w-full h-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white"
+                      />
+                    ) : (
+                      <div className="text-center space-y-3 p-6">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto shadow-sm">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">{activeReport.name}</h4>
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            {activeReport.type || "Medical Record"} • {activeReport.size || "Standard PDF"}
+                          </p>
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            Verified Patient Intake Record
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => downloadPatientReport(activeReport)}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-xs font-semibold inline-flex items-center gap-2 shadow-sm"
+                        >
+                          <Download className="w-4 h-4" /> Download Attached Document
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-center text-slate-400 py-10 font-sans">
+                      <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="font-medium text-xs">No medical files attached</p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Reports uploaded by the patient during AI intake will appear here.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Simulated Prescription Paper */}
-              <div className="h-96 rounded-2xl bg-amber-50/40 dark:bg-slate-800/60 border border-amber-200/60 dark:border-slate-700 p-6 font-mono text-xs text-slate-800 dark:text-slate-200 overflow-y-auto space-y-4">
-                <div className="text-center border-b border-slate-300 dark:border-slate-600 pb-3">
-                  <h4 className="font-bold text-base">VAIDYA CLINIC & RESEARCH CENTRE</h4>
-                  <p className="text-[10px] text-slate-500">Dr. Verma (BAMS, MD Ayu) • Reg No: AYU-88219</p>
+              {/* Right: AI OCR Structured Data Panel */}
+              <div className="lg:col-span-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 space-y-4">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-teal-700 dark:text-teal-400">
+                  <Sparkles className="w-4 h-4" /> AI Intake & OCR Extracted Details
                 </div>
-                <div className="flex justify-between text-[11px]">
-                  <span>Patient: {aiIntake?.patientName || '—'}, {aiIntake ? `${aiIntake.timestamp}` : '—'}</span>
-                  <span>Date: 12 Jan 2024</span>
-                </div>
-                <div className="pt-2">
-                  <p className="font-bold text-sm">Rx :</p>
-                  <p className="pl-4 mt-1">1. Tab Pantoprazole 40 mg — 1 tab OD (Empty Stomach)</p>
-                  <p className="pl-4 mt-1">2. Syp. Antacid Gel — 10 ml BD (After food)</p>
-                  <p className="pl-4 mt-1">3. Avipattikar Churna — 3g HS with lukewarm water</p>
-                </div>
-                <div className="pt-8 text-right text-[11px] italic text-slate-500">
-                  Signed: Dr. Verma (AYUSH)
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-400 font-bold block text-[10px] uppercase">Submission Date</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                      {patient?.date || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} ({patient?.time || "Today"})
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-400 font-bold block text-[10px] uppercase">Patient Chief Symptoms</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                      {patient?.reportedSymptoms?.join(", ") || chiefComplaint || "General AYUSH intake"}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-400 font-bold block text-[10px] uppercase">Extracted Current Medications</span>
+                    <p className="mt-1 font-mono text-[11px] text-slate-800 dark:text-slate-200">
+                      {currentMeds || "None reported by patient"}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="text-slate-400 font-bold block text-[10px] uppercase">AYUSH Clinical Mapping</span>
+                    <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                      Dosha: {prakriti} • Agni: {agni}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Right: AI OCR Structured Data Panel */}
-            <div className="lg:col-span-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 space-y-4">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-teal-700 dark:text-teal-400">
-                <Sparkles className="w-4 h-4" /> AI OCR Extracted Information
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-400 font-bold block text-[10px] uppercase">Prescription Date</span>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">12 January 2024</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-400 font-bold block text-[10px] uppercase">Prescribing Doctor</span>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">Dr. Verma (BAMS, Reg: AYU-88219)</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-400 font-bold block text-[10px] uppercase">Extracted Medications</span>
-                  <ul className="mt-1 space-y-1 font-mono text-[11px]">
-                    <li>• Pantoprazole 40mg OD</li>
-                    <li>• Antacid Gel 10ml BD</li>
-                    <li>• Avipattikar Churna 3g HS</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB 4: AYUSH & DASHAVIDHA PARIKSHA */}
         {activeTab === "ayush" && (
@@ -408,25 +576,25 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
                 <span className="font-bold text-slate-500 uppercase text-[10px]">1. Prakriti (Constitution)</span>
                 <p className="font-semibold text-emerald-700 dark:text-emerald-400">{prakriti}</p>
-                <p className="text-slate-500 text-[11px]">Dominant Pitta with secondary Kapha traits</p>
+                <p className="text-slate-500 text-[11px]">Dominant Dosha pattern from patient symptom assessment</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
                 <span className="font-bold text-slate-500 uppercase text-[10px]">2. Agni (Digestive Fire)</span>
                 <p className="font-semibold text-amber-600 dark:text-amber-400">{agni}</p>
-                <p className="text-slate-500 text-[11px]">Hyper-acidity and erratic digestion noted</p>
+                <p className="text-slate-500 text-[11px]">Digestive fire analysis from clinical intake</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
                 <span className="font-bold text-slate-500 uppercase text-[10px]">3. Koshtha (Bowel Habit)</span>
                 <p className="font-semibold text-slate-800 dark:text-slate-200">{koshtha}</p>
-                <p className="text-slate-500 text-[11px]">Occasional hard stools, evacuation sluggish</p>
+                <p className="text-slate-500 text-[11px]">Digestive transit and bowel habit evaluation</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
                 <span className="font-bold text-slate-500 uppercase text-[10px]">4. Bala (Strength / Immunity)</span>
                 <p className="font-semibold text-slate-800 dark:text-slate-200">Madhyama (Moderate)</p>
-                <p className="text-slate-500 text-[11px]">Patient able to carry out daily tasks without acute fatigue</p>
+                <p className="text-slate-500 text-[11px]">Patient general strength and vitals tolerance</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
@@ -436,7 +604,7 @@ export default function DoctorCaseSheetPage({ params }: { params: { id: string }
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
                 <span className="font-bold text-slate-500 uppercase text-[10px]">6. Kala (Season / Circadian)</span>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">Sharad / Grishma Transition</p>
+                <p className="font-semibold text-slate-800 dark:text-slate-200">Current Seasonal Cycle</p>
               </div>
             </div>
           </div>

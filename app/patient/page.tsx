@@ -56,7 +56,15 @@ import {
   ConsultationVisit, 
   MedicalReport 
 } from "@/lib/patient-data";
-import { DoctorProfile, getDoctors, getPublishedDoctorsFromSupabase, subscribeToDoctors, addPatientToQueue, saveDoctorQueueEntryToSupabase } from "@/lib/doctorStore";
+import { 
+  DoctorProfile, 
+  getDoctors, 
+  getPublishedDoctorsFromSupabase, 
+  subscribeToDoctors, 
+  addPatientToQueue, 
+  saveDoctorQueueEntryToSupabase,
+  addDoctorNotification
+} from "@/lib/doctorStore";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { generateClinicalSummaryPDF, downloadPDF } from "@/lib/pdfGenerator";
 import { AIIntakeSummary, saveAIIntakeSummary } from "@/lib/aiIntakeStore";
@@ -592,6 +600,21 @@ export default function PatientDashboardPage() {
         submittedAt: now,
       };
       addPatientToQueue(queueEntry);
+
+      // Trigger instant real-time notification to the assigned doctor
+      addDoctorNotification({
+        doctorId: assignedDoctor?.id || assignedDoctor?.userId || undefined,
+        title: `New Case: ${summary.patientName} (${queueEntry.token})`,
+        desc: `AI Intake: ${aiSymptoms.slice(0, 3).join(", ") || summary.chiefComplaint}. Severity: ${summary.severity}.`,
+        time: "Just now",
+        read: false,
+        patientId: userId,
+        patientName: summary.patientName,
+        token: queueEntry.token,
+        severity: summary.severity,
+        type: "new_patient",
+      });
+
       if (assignedDoctor?.userId || assignedDoctor?.id) {
         try {
           await saveDoctorQueueEntryToSupabase(queueEntry);

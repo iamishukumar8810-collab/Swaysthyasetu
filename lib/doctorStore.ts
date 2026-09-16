@@ -75,11 +75,28 @@ export interface QueuedPatient {
 
 export const DEFAULT_AYUSH_DOCTORS: DoctorProfile[] = [];
 
+export interface DoctorNotification {
+  id: string;
+  doctorId?: string;
+  title: string;
+  desc: string;
+  time: string;
+  timestamp: string;
+  read: boolean;
+  patientId?: string;
+  patientName?: string;
+  token?: string;
+  severity?: string;
+  type?: "new_patient" | "report_uploaded" | "general";
+}
+
 const STORAGE_KEY = "swasthya_setu_doctors";
 const CURRENT_DOCTOR_KEY = "swasthya_setu_current_doctor_profile";
 const DOCTORS_UPDATED_EVENT = "swasthya_setu_doctors_updated";
 const DOCTOR_QUEUE_KEY = "swasthya_doctor_queue";
 const DOCTOR_QUEUE_UPDATED_EVENT = "swasthya_doctor_queue_updated";
+const DOCTOR_NOTIFICATIONS_KEY = "swasthya_doctor_notifications";
+const DOCTOR_NOTIFICATIONS_UPDATED_EVENT = "swasthya_doctor_notifications_updated";
 
 /**
  * Check if a doctor is a default hardcoded seed doctor
@@ -497,3 +514,115 @@ export function downloadPatientReport(report: QueuedPatientReport) {
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 }
+
+/**
+ * Get all notifications for the doctor from localStorage
+ */
+export function getDoctorNotifications(doctorId?: string): DoctorNotification[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = localStorage.getItem(DOCTOR_NOTIFICATIONS_KEY);
+    if (!saved) return [];
+    const parsed: DoctorNotification[] = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+    if (!doctorId) return parsed;
+    return parsed.filter((n) => !n.doctorId || n.doctorId === doctorId);
+  } catch (err) {
+    console.error("Error reading doctor notifications from localStorage", err);
+    return [];
+  }
+}
+
+/**
+ * Add a new doctor notification and dispatch reactive update event
+ */
+export function addDoctorNotification(
+  notification: Omit<DoctorNotification, "id" | "timestamp"> & { id?: string }
+): DoctorNotification {
+  const newNotif: DoctorNotification = {
+    ...notification,
+    id: notification.id || `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    timestamp: new Date().toISOString(),
+    time: notification.time || "Just now",
+    read: notification.read ?? false,
+  };
+
+  if (typeof window === "undefined") return newNotif;
+
+  try {
+    const existing = getDoctorNotifications();
+    const updated = [newNotif, ...existing.filter((n) => n.id !== newNotif.id)].slice(0, 50);
+    localStorage.setItem(DOCTOR_NOTIFICATIONS_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent(DOCTOR_NOTIFICATIONS_UPDATED_EVENT, { detail: newNotif }));
+  } catch (err) {
+    console.error("Error saving doctor notification", err);
+  }
+
+  return newNotif;
+}
+
+/**
+ * Mark a single notification as read
+ */
+export function markDoctorNotificationAsRead(id: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getDoctorNotifications();
+    const updated = existing.map((n) => (n.id === id ? { ...n, read: true } : n));
+    localStorage.setItem(DOCTOR_NOTIFICATIONS_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent(DOCTOR_NOTIFICATIONS_UPDATED_EVENT));
+  } catch (err) {
+    console.error("Error marking notification as read", err);
+  }
+}
+
+/**
+ * Mark all notifications for a doctor as read
+ */
+export function markAllDoctorNotificationsAsRead(doctorId?: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getDoctorNotifications();
+    const updated = existing.map((n) => {
+      if (!doctorId || !n.doctorId || n.doctorId === doctorId) {
+        return { ...n, read: true };
+      }
+      return n;
+    });
+    localStorage.setItem(DOCTOR_NOTIFICATIONS_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent(DOCTOR_NOTIFICATIONS_UPDATED_EVENT));
+  } catch (err) {
+    console.error("Error marking all notifications as read", err);
+  }
+}
+
+/**
+ * Subscribe to doctor notification updates
+ */
+export function subscribeToDoctorNotifications(
+  callback: (notifications: DoctorNotification[], latestAdded?: DoctorNotification) => void,
+  doctorId?: string
+): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const handleUpdate = (event?: Event) => {
+    const customEvent = event as CustomEvent<DoctorNotification> | undefined;
+    const latest = customEvent?.detail;
+    callback(getDoctorNotifications(doctorId), latest);
+  };
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === DOCTOR_NOTIFICATIONS_KEY) {
+      callback(getDoctorNotifications(doctorId));
+    }
+  };
+
+  window.addEventListener(DOCTOR_NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    window.removeEventListener(DOCTOR_NOTIFICATIONS_UPDATED_EVENT, handleUpdate);
+    window.removeEventListener("storage", handleStorage);
+  };
+}
+

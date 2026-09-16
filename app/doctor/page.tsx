@@ -61,6 +61,12 @@ import {
   QueuedPatient,
   QueuedPatientReport,
   downloadPatientReport,
+  DoctorNotification,
+  getDoctorNotifications,
+  addDoctorNotification,
+  markDoctorNotificationAsRead,
+  markAllDoctorNotificationsAsRead,
+  subscribeToDoctorNotifications,
 } from "@/lib/doctorStore";
 import {
   AIIntakeSummary,
@@ -632,13 +638,21 @@ export default function DoctorWorkspacePage() {
     triggerToast(`Status set to: ${updated.isAvailableToday ? "Available Today" : "Offline / Busy"}`);
   };
 
-  // Notifications Popover
+  // Notifications Popover & Real-Time Alerts
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications] = useState([
-    { id: 1, title: "New pre-consultation ready", desc: "A patient completed AI intake via mobile.", time: "5 min ago", read: false },
-    { id: 2, title: "Lab Report Uploaded", desc: "Previous Hb 12.4 report synced to timeline.", time: "22 min ago", read: false },
-    { id: 3, title: "Critical Alert Cleared", desc: "Vital signs verified normal by intake triage.", time: "1 hr ago", read: true },
-  ]);
+  const [notifications, setNotifications] = useState<DoctorNotification[]>([]);
+
+  useEffect(() => {
+    setNotifications(getDoctorNotifications(currentDoctor.id));
+    const unsubNotifs = subscribeToDoctorNotifications((notifs, latest) => {
+      setNotifications(notifs);
+      if (latest && !latest.read) {
+        triggerToast(`🔔 New Patient Alert: ${latest.patientName || "Patient"} (${latest.token || "Queue"}) - ${latest.title}`);
+      }
+    }, currentDoctor.id);
+
+    return () => unsubNotifs();
+  }, [currentDoctor.id]);
 
   // Interactive Modals
   const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -919,35 +933,100 @@ export default function DoctorWorkspacePage() {
                 aria-label="Notifications"
               >
                 <Bell className="w-4 h-4" />
-                <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-900">
-                  3
-                </span>
+                {notifications.filter((n) => !n.read).length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-sm animate-pulse">
+                    {notifications.filter((n) => !n.read).length > 9 ? "9+" : notifications.filter((n) => !n.read).length}
+                  </span>
+                )}
               </button>
 
               {/* Dropdown notifications */}
               {showNotifications && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3 z-50 animate-in fade-in zoom-in-95">
+                <div className="absolute right-0 top-full mt-2 w-84 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-3 z-50 animate-in fade-in zoom-in-95">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 mb-2">
-                    <span className="text-xs font-bold text-slate-800 dark:text-white">
-                      {t("header.notifications", "Doctor Notifications")}
-                    </span>
-                    <button
-                      onClick={() => setShowNotifications(false)}
-                      className="text-[10px] text-emerald-600 hover:underline"
-                    >
-                      {t("header.markAllRead", "Mark all read")}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-800 dark:text-white">
+                        {t("header.notifications", "Doctor Notifications")}
+                      </span>
+                      {notifications.filter((n) => !n.read).length > 0 && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 rounded-full">
+                          {notifications.filter((n) => !n.read).length} new
+                        </span>
+                      )}
+                    </div>
+                    {notifications.some((n) => !n.read) && (
+                      <button
+                        onClick={() => {
+                          markAllDoctorNotificationsAsRead(currentDoctor.id);
+                          setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+                          triggerToast("All notifications marked as read");
+                        }}
+                        className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                      >
+                        {t("header.markAllRead", "Mark all read")}
+                      </button>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    {notifications.map((n) => (
-                      <div key={n.id} className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50/50 transition-colors text-xs">
-                        <div className="flex items-center justify-between">
-                          <strong className="text-slate-800 dark:text-slate-200 text-[11px]">{n.title}</strong>
-                          <span className="text-[9px] text-slate-400">{n.time}</span>
+                  <div className="max-h-80 overflow-y-auto space-y-2 pr-0.5">
+                    {notifications.length > 0 ? (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            markDoctorNotificationAsRead(n.id);
+                            setNotifications((prev) =>
+                              prev.map((item) => (item.id === n.id ? { ...item, read: true } : item))
+                            );
+                            if (n.patientId) {
+                              const found = patients.find((p) => p.id === n.patientId || p.name === n.patientName);
+                              if (found) {
+                                setSelectedPatientId(found.id);
+                                triggerToast(`Switched to patient: ${found.name}`);
+                              }
+                            }
+                            setShowNotifications(false);
+                          }}
+                          className={`p-2.5 rounded-xl border transition-all text-xs cursor-pointer ${
+                            !n.read
+                              ? "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 shadow-xs"
+                              : "bg-slate-50 dark:bg-slate-800/60 border-slate-200/60 dark:border-slate-700/60 opacity-80 hover:opacity-100"
+                          } hover:border-emerald-400`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {!n.read && (
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                              )}
+                              <strong className="text-slate-800 dark:text-slate-100 text-[11px] font-bold truncate">
+                                {n.title}
+                              </strong>
+                            </div>
+                            <span className="text-[9px] text-slate-400 shrink-0">{n.time}</span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1 line-clamp-2">
+                            {n.desc}
+                          </p>
+                          {n.token && (
+                            <div className="mt-1.5 flex items-center justify-between text-[9px]">
+                              <span className="font-mono text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-100/60 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                                Token: {n.token}
+                              </span>
+                              <span className="text-slate-400 group-hover:text-emerald-600 flex items-center gap-0.5">
+                                View Case →
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{n.desc}</p>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-slate-400 text-xs">
+                        <Bell className="w-6 h-6 mx-auto mb-1.5 opacity-40 text-slate-400" />
+                        <p className="font-medium text-[11px]">No notifications yet</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          New patient registrations & AI intake cases will alert you here.
+                        </p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
